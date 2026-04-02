@@ -108,6 +108,7 @@ export default function Vault() {
   const [hideBalances, setHideBalances] = useState(false);
   const [mobileNav, setMobileNav] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [mobileSettings, setMobileSettings] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth < 768);
@@ -873,9 +874,9 @@ Important: If you see multiple amounts, use the total/final amount. For bank tra
           ))}
         </div>
 
-        {/* Settings — pinned at bottom */}
-        {!(sidebarCollapsed && !isMobile) && (
-          <div style={{ padding: isMobile ? "12px 12px 40px" : "12px 12px 16px", borderTop: `1px solid ${T.sidebarBorder}`, flexShrink: 0 }}>
+        {/* Settings — desktop only (mobile uses header dropdown) */}
+        {!isMobile && !(sidebarCollapsed) && (
+          <div style={{ padding: "12px 12px 16px", borderTop: `1px solid ${T.sidebarBorder}`, flexShrink: 0 }}>
             <div style={{ fontSize: 9, color: T.textSoft, textTransform: "uppercase" as const, letterSpacing: 1, marginBottom: 6 }}>Currency</div>
             <select value={dCur} onChange={e => setDCur(e.target.value)} style={{ background: T.input, border: `1px solid ${T.inputBorder}`, color: "#4ECDC4", padding: "6px 8px", borderRadius: 6, fontSize: 13, outline: "none", fontWeight: 700, width: "100%", marginBottom: 8 }}>{ALL_CUR.map(c => <option key={c}>{c}</option>)}</select>
             <button onClick={() => setDarkMode(!darkMode)} style={{ width: "100%", background: "none", border: `1px solid ${T.inputBorder}`, color: T.navText, padding: "5px", borderRadius: 6, cursor: "pointer", fontSize: 10, marginBottom: 4 }}>{dk ? "☀️ Light Mode" : "🌙 Dark Mode"}</button>
@@ -900,10 +901,41 @@ Important: If you see multiple amounts, use the total/final amount. For bank tra
       <div style={{ flex: 1, overflowY: "auto", height: "100vh" }}>
         {/* Mobile header */}
         {isMobile && (
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px", background: T.sidebar, borderBottom: `1px solid ${T.sidebarBorder}`, position: "sticky", top: 0, zIndex: 50 }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 12px", background: T.sidebar, borderBottom: `1px solid ${T.sidebarBorder}`, position: "sticky", top: 0, zIndex: 50 }}>
             <button onClick={() => setMobileNav(true)} style={{ background: "none", border: "none", color: T.textWhite, fontSize: 22, cursor: "pointer", padding: "4px 8px" }}>☰</button>
             <div style={{ fontSize: 16, fontWeight: 800, color: T.textWhite, letterSpacing: 4 }}>VAULT</div>
-            <button onClick={() => setHideBalances(!hideBalances)} style={{ background: "none", border: "none", color: T.textSoft, fontSize: 18, cursor: "pointer", padding: "4px 8px" }}>{hideBalances ? "🙈" : "👁"}</button>
+            <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
+              <button onClick={() => setHideBalances(!hideBalances)} style={{ background: "none", border: "none", color: T.textSoft, fontSize: 18, cursor: "pointer", padding: "4px 6px" }}>{hideBalances ? "🙈" : "👁"}</button>
+              <div style={{ position: "relative" as const }}>
+                <button onClick={(e) => { e.stopPropagation(); setMobileSettings(!mobileSettings); }} style={{ background: "none", border: "none", color: T.textSoft, fontSize: 18, cursor: "pointer", padding: "4px 6px" }}>⚙️</button>
+                {mobileSettings && (<>
+                  <div onClick={() => setMobileSettings(false)} style={{ position: "fixed", inset: 0, zIndex: 200 }} />
+                  <div style={{ position: "absolute", top: "100%", right: 0, marginTop: 6, background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 12, padding: 8, zIndex: 201, minWidth: 200, boxShadow: "0 8px 24px rgba(0,0,0,.4)" }}>
+                    <div style={{ padding: "6px 10px", fontSize: 9, color: T.textSoft, textTransform: "uppercase" as const, letterSpacing: 1 }}>Currency</div>
+                    <select value={dCur} onChange={e => setDCur(e.target.value)} style={{ background: T.input, border: `1px solid ${T.inputBorder}`, color: "#4ECDC4", padding: "8px 10px", borderRadius: 6, fontSize: 13, outline: "none", fontWeight: 700, width: "100%", marginBottom: 6 }}>{ALL_CUR.map(c => <option key={c}>{c}</option>)}</select>
+                    <button onClick={() => { setDarkMode(!darkMode); setMobileSettings(false); }} style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "10px 10px", background: "transparent", border: "none", borderRadius: 6, color: T.text, cursor: "pointer", fontSize: 13, textAlign: "left" as const }}>
+                      {dk ? "☀️ Light Mode" : "🌙 Dark Mode"}
+                    </button>
+                    <button onClick={() => { setShowRates(!showRates); setMobileSettings(false); }} style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "10px 10px", background: "transparent", border: "none", borderRadius: 6, color: T.text, cursor: "pointer", fontSize: 13, textAlign: "left" as const }}>
+                      💱 Rates
+                    </button>
+                    <button onClick={() => {
+                      setMobileSettings(false);
+                      const answer = prompt('Type RESET to erase all data. This cannot be undone.');
+                      if (answer?.trim().toUpperCase() !== 'RESET') return;
+                      setAccounts([]); setDebts([]); setReceivables([]); setCryptos([]); setTxns([]); setPipelines([]); setAssets([]); setInventory([]); setPnlBatches([]); setSnaps([]); save();
+                    }} style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "10px 10px", background: "transparent", border: "none", borderRadius: 6, color: "#FF6B6B", cursor: "pointer", fontSize: 13, textAlign: "left" as const }}>
+                      🗑️ Reset Data
+                    </button>
+                    <div style={{ borderTop: `1px solid ${T.divider}`, marginTop: 4, paddingTop: 4 }}>
+                      <button onClick={() => { setMobileSettings(false); handleLogout(); }} style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "10px 10px", background: "transparent", border: "none", borderRadius: 6, color: "#FF6B6B", cursor: "pointer", fontSize: 13, fontWeight: 600, textAlign: "left" as const }}>
+                        🚪 Logout
+                      </button>
+                    </div>
+                  </div>
+                </>)}
+              </div>
+            </div>
           </div>
         )}
         {/* Rates panel */}
