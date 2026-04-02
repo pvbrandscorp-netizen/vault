@@ -106,6 +106,13 @@ export default function Vault() {
   const [dCur, setDCur] = useState("PHP");
   const [darkMode, setDarkMode] = useState(true);
   const [hideBalances, setHideBalances] = useState(false);
+  const [mobileNav, setMobileNav] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 768);
+    check(); window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
+  }, []);
   const [sf, setSf] = useState<string | null>(null);
   const [eId, setEId] = useState<string | null>(null);
   const [showRates, setShowRates] = useState(false);
@@ -735,7 +742,7 @@ Important: If you see multiple amounts, use the total/final amount. For bank tra
   const BtnS = (bg: string, clr?: string): React.CSSProperties => ({ background: bg, color: clr || "#0B0D12", border: "none", padding: "8px 16px", borderRadius: 8, fontWeight: 700, cursor: "pointer", fontSize: 13 });
   const CnclS: React.CSSProperties = { background: "none", border: `1px solid ${T.inputBorder}`, color: "#888", padding: "8px 16px", borderRadius: 8, cursor: "pointer", fontSize: 13 };
   const FmS: React.CSSProperties = { background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 10, padding: 16, marginBottom: 14 };
-  const G2: React.CSSProperties = { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 10 };
+  const G2: React.CSSProperties = { display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 10, marginBottom: 10 };
   const FlEnd: React.CSSProperties = { display: "flex", justifyContent: "flex-end", gap: 8 };
 
   if (!loaded) {
@@ -749,8 +756,15 @@ Important: If you see multiple amounts, use the total/final amount. For bank tra
   return (
     <div style={{ minHeight: "100vh", background: T.bg, color: T.text, fontFamily: "system-ui, sans-serif", display: "flex" }}>
 
+      {/* Mobile overlay backdrop */}
+      {isMobile && mobileNav && <div onClick={() => setMobileNav(false)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.5)", zIndex: 998 }} />}
+
       {/* ── SIDEBAR ── */}
-      <div style={{ width: 220, minWidth: 220, background: T.sidebar, borderRight: `1px solid ${T.sidebarBorder}`, display: "flex", flexDirection: "column", position: "sticky", top: 0, height: "100vh", overflowY: "auto" }}>
+      <div style={{
+        width: 220, minWidth: 220, background: T.sidebar, borderRight: `1px solid ${T.sidebarBorder}`,
+        display: "flex", flexDirection: "column", height: "100vh", overflowY: "auto",
+        ...(isMobile ? { position: "fixed", top: 0, left: 0, zIndex: 999, transform: mobileNav ? "translateX(0)" : "translateX(-100%)", transition: "transform .25s ease" } : { position: "sticky" as const, top: 0 })
+      }}>
         {/* Logo */}
         <div style={{ padding: "20px 16px 12px" }}>
           <div style={{ fontSize: 20, fontWeight: 800, color: T.textWhite, letterSpacing: 4 }}>VAULT</div>
@@ -776,7 +790,7 @@ Important: If you see multiple amounts, use the total/final amount. For bank tra
             ["scan", "📸", "Smart Scan"],
             ["tx", "📝", "Activity"],
           ].map(([k, icon, label]) => (
-            <button key={k} onClick={() => { setView(k); setSf(null); setEId(null); }}
+            <button key={k} onClick={() => { setView(k); setSf(null); setEId(null); setMobileNav(false); }}
               style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", padding: "10px 12px", marginBottom: 2, background: view === k ? T.navActive : T.navInactive, border: "none", borderRadius: 8, color: view === k ? T.navActiveText : T.navText, cursor: "pointer", fontSize: 13, fontWeight: view === k ? 600 : 400, textAlign: "left" as const, borderLeft: view === k ? "3px solid #4ECDC4" : "3px solid transparent" }}>
               <span style={{ fontSize: 16 }}>{icon}</span> {label}
             </button>
@@ -800,11 +814,19 @@ Important: If you see multiple amounts, use the total/final amount. For bank tra
 
       {/* ── MAIN CONTENT ── */}
       <div style={{ flex: 1, overflowY: "auto", height: "100vh" }}>
+        {/* Mobile header */}
+        {isMobile && (
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px", background: T.sidebar, borderBottom: `1px solid ${T.sidebarBorder}`, position: "sticky", top: 0, zIndex: 50 }}>
+            <button onClick={() => setMobileNav(true)} style={{ background: "none", border: "none", color: T.textWhite, fontSize: 22, cursor: "pointer", padding: "4px 8px" }}>☰</button>
+            <div style={{ fontSize: 16, fontWeight: 800, color: T.textWhite, letterSpacing: 4 }}>VAULT</div>
+            <button onClick={() => setHideBalances(!hideBalances)} style={{ background: "none", border: "none", color: T.textSoft, fontSize: 18, cursor: "pointer", padding: "4px 8px" }}>{hideBalances ? "🙈" : "👁"}</button>
+          </div>
+        )}
         {/* Rates panel */}
         {showRates && (
           <div style={{ ...FmS, margin: "12px 20px 0" }}>
             <div style={{ fontWeight: 700, color: "#fff", fontSize: 13, marginBottom: 8 }}>💱 Rates (1 unit = ? PHP)</div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 8 }}>
+            <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "1fr 1fr 1fr 1fr", gap: 8 }}>
               {Object.entries(rates).filter(([k]) => k !== "PHP").map(([cur, rate]) => (
                 <div key={cur}><span style={{ fontSize: 10, color: "#888", fontWeight: 600 }}>1 {cur}</span><input style={{ ...I, padding: "6px 8px", fontSize: 12, marginTop: 2 }} type="number" defaultValue={rate} onBlur={e => updRate(cur, e.target.value)} /></div>
               ))}
@@ -813,7 +835,7 @@ Important: If you see multiple amounts, use the total/final amount. For bank tra
           </div>
         )}
 
-        <div style={{ padding: "16px 20px", paddingBottom: 60 }}>
+        <div style={{ padding: isMobile ? "12px 12px 60px" : "16px 20px 60px" }}>
 
         {/* ═══ DASHBOARD ═══ */}
         {view === "dash" && (<div>
@@ -934,12 +956,12 @@ Important: If you see multiple amounts, use the total/final amount. For bank tra
             </div>
           )}
 
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 6, marginBottom: 8 }}>
+          <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr 1fr", gap: 6, marginBottom: 8 }}>
             <div style={Cd("#4ECDC4")}><div style={L}>Fiat</div><div style={{ fontSize: 14, fontWeight: 700, color: "#4ECDC4", marginTop: 3 }}>{masked(fm(tAssets, dCur, true))}</div></div>
             <div style={Cd("#F7931A")}><div style={L}>Crypto</div><div style={{ fontSize: 14, fontWeight: 700, color: "#F7931A", marginTop: 3 }}>{masked(fm(tCrypto, dCur, true))}</div></div>
             <div style={Cd("#FF6B6B")}><div style={L}>Debt</div><div style={{ fontSize: 14, fontWeight: 700, color: "#FF6B6B", marginTop: 3 }}>{masked(fm(tDebt, dCur, true))}</div></div>
           </div>
-          {tLimit > 0 && <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 6, marginBottom: 8 }}>
+          {tLimit > 0 && <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr 1fr", gap: 6, marginBottom: 8 }}>
             <div style={Cd("#A8B5E2")}><div style={L}>Credit Limit</div><div style={{ fontSize: 14, fontWeight: 700, color: "#A8B5E2", marginTop: 3 }}>{masked(fm(tLimit, dCur, true))}</div></div>
             <div style={Cd("#FF6B6B")}><div style={L}>Used Credit</div><div style={{ fontSize: 14, fontWeight: 700, color: "#FF6B6B", marginTop: 3 }}>{masked(fm(tDebt, dCur, true))}</div><div style={{ fontSize: 10, color: T.textSoft }}>{tLimit > 0 ? Math.round(tDebt / tLimit * 100) : 0}% used</div></div>
             <div style={Cd("#95E77E")}><div style={L}>Available Credit</div><div style={{ fontSize: 14, fontWeight: 700, color: "#95E77E", marginTop: 3 }}>{masked(fm(tLimit - tDebt, dCur, true))}</div></div>
@@ -1280,7 +1302,7 @@ Important: If you see multiple amounts, use the total/final amount. For bank tra
 
         {/* ═══ DEBTS ═══ */}
         {view === "debt" && (<div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 6, marginBottom: 10 }}>
+          <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr 1fr", gap: 6, marginBottom: 10 }}>
             <div style={{ background: "#12141A", borderRadius: 8, padding: "8px" }}><div style={{ fontSize: 9, color: "#555", textTransform: "uppercase" as const }}>Limit</div><div style={{ fontSize: 14, fontWeight: 700, color: "#A8B5E2", marginTop: 3 }}>{fm(tLimit, dCur, true)}</div></div>
             <div style={{ background: "#12141A", borderRadius: 8, padding: "8px" }}><div style={{ fontSize: 9, color: "#555", textTransform: "uppercase" as const }}>Outstanding</div><div style={{ fontSize: 14, fontWeight: 700, color: "#FF6B6B", marginTop: 3 }}>{fm(tDebt, dCur, true)}</div></div>
             <div style={{ background: "#12141A", borderRadius: 8, padding: "8px" }}><div style={{ fontSize: 9, color: "#555", textTransform: "uppercase" as const }}>Available</div><div style={{ fontSize: 14, fontWeight: 700, color: "#95E77E", marginTop: 3 }}>{fm(tLimit - tDebt, dCur, true)}</div></div>
@@ -1313,7 +1335,7 @@ Important: If you see multiple amounts, use the total/final amount. For bank tra
                   <div style={{ textAlign: "right" as const }}><div style={{ fontSize: 10, color: "#555" }}>Due Amount</div><div style={{ fontSize: 16, fontWeight: 700, color: "#FFD93D" }}>{fm(d.dueAmount || 0, d.currency)}</div></div>
                 </div>
                 {d.creditLimit > 0 && (<div style={{ marginBottom: 8 }}><div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, color: "#555", marginBottom: 3 }}><span>{util}% used</span><span>{fm(d.outstanding, d.currency)} / {fm(d.creditLimit, d.currency)}</span></div><div style={{ height: 6, background: "#1a1d25", borderRadius: 3, overflow: "hidden" }}><div style={{ height: "100%", width: `${Math.min(util, 100)}%`, background: util > 80 ? "#FF4444" : util > 50 ? "#FFD93D" : "#4ECDC4", borderRadius: 3 }} /></div></div>)}
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 6, marginBottom: 8 }}>
+                <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "1fr 1fr 1fr 1fr", gap: 6, marginBottom: 8 }}>
                   <div style={{ background: "#0B0D12", borderRadius: 6, padding: "6px" }}><div style={{ fontSize: 9, color: "#555" }}>LIMIT</div><div style={{ fontSize: 12, fontWeight: 700, color: "#A8B5E2", marginTop: 2 }}>{fm(d.creditLimit || 0, d.currency)}</div></div>
                   <div style={{ background: "#0B0D12", borderRadius: 6, padding: "6px" }}><div style={{ fontSize: 9, color: "#555" }}>OWED</div><div style={{ fontSize: 12, fontWeight: 700, color: "#FF6B6B", marginTop: 2 }}>{fm(d.outstanding, d.currency)}</div></div>
                   <div style={{ background: "#0B0D12", borderRadius: 6, padding: "6px" }}><div style={{ fontSize: 9, color: "#555" }}>AVAIL</div><div style={{ fontSize: 12, fontWeight: 700, color: "#95E77E", marginTop: 2 }}>{fm((d.creditLimit || 0) - d.outstanding, d.currency)}</div></div>
@@ -1444,7 +1466,7 @@ Important: If you see multiple amounts, use the total/final amount. For bank tra
                     <div style={{ fontSize: 18, fontWeight: 700, color: netProj >= 0 ? "#95E77E" : "#FF6B6B" }}>{fm(netProj, p.currency)}</div>
                   </div>
                 </div>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 6, marginBottom: 8 }}>
+                <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr 1fr", gap: 6, marginBottom: 8 }}>
                   <div style={{ background: "#0B0D12", borderRadius: 6, padding: "6px" }}><div style={{ fontSize: 9, color: "#555" }}>GROSS</div><div style={{ fontSize: 12, fontWeight: 700, color: "#E9C46A", marginTop: 2 }}>{fm(p.grossValue, p.currency)}</div></div>
                   <div style={{ background: "#0B0D12", borderRadius: 6, padding: "6px" }}><div style={{ fontSize: 9, color: "#555" }}>EXP. REVENUE</div><div style={{ fontSize: 12, fontWeight: 700, color: "#95E77E", marginTop: 2 }}>{fm(expRev, p.currency)}</div><div style={{ fontSize: 9, color: "#444" }}>{p.deliveryRate}% delivery</div></div>
                   <div style={{ background: "#0B0D12", borderRadius: 6, padding: "6px" }}><div style={{ fontSize: 9, color: "#555" }}>EXP. RETURNS</div><div style={{ fontSize: 12, fontWeight: 700, color: "#FF6B6B", marginTop: 2 }}>{fm(expReturn, p.currency)}</div><div style={{ fontSize: 9, color: "#444" }}>{100 - p.deliveryRate}% return</div></div>
@@ -1464,7 +1486,7 @@ Important: If you see multiple amounts, use the total/final amount. For bank tra
                 {!isSettled && (
                   <div style={{ background: "#0B0D12", borderRadius: 6, padding: "8px 10px", marginBottom: 8 }}>
                     <div style={{ fontSize: 9, color: "#E9C46A", textTransform: "uppercase" as const, marginBottom: 6 }}>Actual Results (update as they come in)</div>
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
+                    <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr 1fr", gap: 8 }}>
                       <div><span style={{ fontSize: 9, color: "#555" }}>Received</span><input style={{ ...I, padding: "6px 8px", fontSize: 12, marginTop: 2 }} type="text" inputMode="decimal" placeholder={fmtNum(String(p.actualReceived || 0))} onBlur={e => { if (e.target.value) { updatePipelineActuals(p.id, "actualReceived", e.target.value); e.target.value = ""; } }} /></div>
                       <div><span style={{ fontSize: 9, color: "#555" }}>Returned</span><input style={{ ...I, padding: "6px 8px", fontSize: 12, marginTop: 2 }} type="text" inputMode="decimal" placeholder={fmtNum(String(p.actualReturned || 0))} onBlur={e => { if (e.target.value) { updatePipelineActuals(p.id, "actualReturned", e.target.value); e.target.value = ""; } }} /></div>
                       <div><span style={{ fontSize: 9, color: "#555" }}>Act. Expenses</span><input style={{ ...I, padding: "6px 8px", fontSize: 12, marginTop: 2 }} type="text" inputMode="decimal" placeholder={fmtNum(String(p.actualExpenses || 0))} onBlur={e => { if (e.target.value) { updatePipelineActuals(p.id, "actualExpenses", e.target.value); e.target.value = ""; } }} /></div>
@@ -1491,7 +1513,7 @@ Important: If you see multiple amounts, use the total/final amount. For bank tra
         {/* ═══ P&L IMPORT ═══ */}
         {view === "pnl" && (<div>
           {sPnl.length > 0 && (
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 6, marginBottom: 16 }}>
+            <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "1fr 1fr 1fr 1fr", gap: 6, marginBottom: 16 }}>
               {(() => { const tOrd = sPnl.reduce((s: number, b: AnyState) => s + (b.totalOrders || 0), 0); const tDel = sPnl.reduce((s: number, b: AnyState) => s + (b.delivered || 0), 0); const tGross = sPnl.reduce((s: number, b: AnyState) => s + (b.grossRev || 0), 0); const tNet = sPnl.reduce((s: number, b: AnyState) => s + (b.netRev || 0), 0); const tFees = sPnl.reduce((s: number, b: AnyState) => s + (b.totalFees || 0), 0); const tShip = sPnl.reduce((s: number, b: AnyState) => s + (b.totalShip || 0), 0);
                 return (<>
                   <div style={Cd("#E9C46A")}><div style={L}>Total Orders</div><div style={{ fontSize: 16, fontWeight: 700, color: "#E9C46A", marginTop: 3 }}>{fmtNum(String(tOrd))}</div><div style={{ fontSize: 10, color: "#555" }}>{tDel} delivered</div></div>
@@ -1527,7 +1549,7 @@ Important: If you see multiple amounts, use the total/final amount. For bank tra
           {csvPreview && (
             <div style={{ background: "#12141A", border: "2px solid #E9C46A", borderRadius: 12, padding: 16, marginBottom: 16 }}>
               <div style={{ fontWeight: 700, color: "#E9C46A", marginBottom: 12, fontSize: 15 }}>📊 Preview: {csvPreview.fileName}</div>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginBottom: 12 }}>
+              <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr 1fr", gap: 8, marginBottom: 12 }}>
                 <div style={{ background: "#0B0D12", borderRadius: 6, padding: "8px" }}><div style={{ fontSize: 9, color: "#555" }}>TOTAL ORDERS</div><div style={{ fontSize: 16, fontWeight: 700, color: "#fff", marginTop: 2 }}>{csvPreview.totalOrders}</div></div>
                 <div style={{ background: "#0B0D12", borderRadius: 6, padding: "8px" }}><div style={{ fontSize: 9, color: "#555" }}>DELIVERED</div><div style={{ fontSize: 16, fontWeight: 700, color: "#95E77E", marginTop: 2 }}>{csvPreview.delivered}</div></div>
                 <div style={{ background: "#0B0D12", borderRadius: 6, padding: "8px" }}><div style={{ fontSize: 9, color: "#555" }}>DELIVERY RATE</div><div style={{ fontSize: 16, fontWeight: 700, color: "#E9C46A", marginTop: 2 }}>{csvPreview.deliveryRate}%</div></div>
@@ -1579,7 +1601,7 @@ Important: If you see multiple amounts, use the total/final amount. For bank tra
                     <div style={{ fontSize: 10, color: "#555" }}>net</div>
                   </div>
                 </div>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 6, marginBottom: 6 }}>
+                <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "1fr 1fr 1fr 1fr", gap: 6, marginBottom: 6 }}>
                   <div style={{ background: "#0B0D12", borderRadius: 6, padding: "5px 6px" }}><div style={{ fontSize: 9, color: "#555" }}>ORDERS</div><div style={{ fontSize: 11, fontWeight: 700, color: "#ccc" }}>{b.totalOrders}</div></div>
                   <div style={{ background: "#0B0D12", borderRadius: 6, padding: "5px 6px" }}><div style={{ fontSize: 9, color: "#555" }}>DELIVERED</div><div style={{ fontSize: 11, fontWeight: 700, color: "#95E77E" }}>{b.delivered}</div></div>
                   <div style={{ background: "#0B0D12", borderRadius: 6, padding: "5px 6px" }}><div style={{ fontSize: 9, color: "#555" }}>GROSS</div><div style={{ fontSize: 11, fontWeight: 700, color: "#E9C46A" }}>{fm(b.grossRev, b.currency)}</div></div>
@@ -1667,7 +1689,7 @@ Important: If you see multiple amounts, use the total/final amount. For bank tra
 
             {/* Summary */}
             {rptSections.summary && (
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 6, marginBottom: 16 }}>
+              <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr 1fr", gap: 6, marginBottom: 16 }}>
                 <div style={Cd("#95E77E")}><div style={L}>Income</div><div style={{ fontSize: 16, fontWeight: 700, color: "#95E77E", marginTop: 3 }}>{masked(fm(rIncome, dCur, true))}</div></div>
                 <div style={Cd("#FF6B6B")}><div style={L}>Expenses</div><div style={{ fontSize: 16, fontWeight: 700, color: "#FF6B6B", marginTop: 3 }}>{masked(fm(rExpense, dCur, true))}</div></div>
                 <div style={Cd(rIncome - rExpense >= 0 ? "#4ECDC4" : "#FF6B6B")}><div style={L}>Net</div><div style={{ fontSize: 16, fontWeight: 700, color: rIncome - rExpense >= 0 ? "#4ECDC4" : "#FF6B6B", marginTop: 3 }}>{masked(fm(rIncome - rExpense, dCur, true))}</div></div>
