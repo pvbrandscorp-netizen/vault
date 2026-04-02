@@ -113,6 +113,9 @@ export default function Vault() {
   const [calcDaily, setCalcDaily] = useState("");
   const [calcDate, setCalcDate] = useState("");
   const [calcTarget, setCalcTarget] = useState("");
+  const [calcRates, setCalcRates] = useState<Record<string, string>>({ shippingPct: "13.5", codPct: "1", deliveryRate: "75", salariesPct: "6", otherPct: "1", cogsPct: "10", adsRoas: "4" });
+  const [calcExtras, setCalcExtras] = useState<Array<{ name: string; pct: string }>>([]);
+  const [showCalcRates, setShowCalcRates] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth < 768);
@@ -2310,39 +2313,42 @@ Important: If you see multiple amounts, use the total/final amount. For bank tra
           const targetDate = calcDate || todayStr;
           const daysLeft = Math.max(1, Math.ceil((new Date(targetDate).getTime() - today.getTime()) / 864e5));
 
-          // Use pipeline presets for expense calculation
-          const shipPct = parseFloat(PIPE_PRESETS.shippingPct) || 0;
-          const codPct = parseFloat(PIPE_PRESETS.codPct) || 0;
-          const delRate = parseFloat(PIPE_PRESETS.deliveryRate) || 75;
-          const salPct = parseFloat(PIPE_PRESETS.salariesPct) || 0;
-          const othPct = parseFloat(PIPE_PRESETS.otherPct) || 0;
-          const cogPct = parseFloat(PIPE_PRESETS.cogsPct) || 0;
-          const roas = parseFloat(PIPE_PRESETS.adsRoas) || 4;
-          const totalExpPct = shipPct + codPct + salPct + othPct + cogPct;
+          const cr = calcRates;
+          const shipPct = parseFloat(cr.shippingPct) || 0;
+          const codPct = parseFloat(cr.codPct) || 0;
+          const delRate = parseFloat(cr.deliveryRate) || 75;
+          const salPct = parseFloat(cr.salariesPct) || 0;
+          const othPct = parseFloat(cr.otherPct) || 0;
+          const cogPct = parseFloat(cr.cogsPct) || 0;
+          const roas = parseFloat(cr.adsRoas) || 0;
+          const extrasPct = calcExtras.reduce((s, e) => s + (parseFloat(e.pct) || 0), 0);
+          const totalExpPct = shipPct + codPct + salPct + othPct + cogPct + extrasPct;
           const adsPctEq = roas > 0 ? (1 / roas) * 100 : 0;
           const netMarginPct = delRate - totalExpPct - adsPctEq;
 
           let results: AnyState = null;
 
+          const computeFromGross = (totalGross: number) => {
+            const delivered = totalGross * (delRate / 100);
+            const totalExp = totalGross * (totalExpPct / 100);
+            const adSpend = roas > 0 ? totalGross / roas : 0;
+            return { delivered, totalExp, adSpend, netCash: delivered - totalExp - adSpend };
+          };
+
           if (calcMode === "sales2cash") {
             const daily = parseN(calcDaily);
             if (daily > 0) {
               const totalGross = daily * daysLeft;
-              const delivered = totalGross * (delRate / 100);
-              const totalExp = totalGross * (totalExpPct / 100);
-              const adSpend = roas > 0 ? totalGross / roas : 0;
-              const netCash = delivered - totalExp - adSpend;
-              results = { daily, daysLeft, totalGross, delivered, totalExp, adSpend, netCash };
+              const c = computeFromGross(totalGross);
+              results = { daily, daysLeft, totalGross, ...c };
             }
           } else {
             const target = parseN(calcTarget);
             if (target > 0 && netMarginPct > 0) {
               const totalGross = target / (netMarginPct / 100);
               const daily = totalGross / daysLeft;
-              const delivered = totalGross * (delRate / 100);
-              const totalExp = totalGross * (totalExpPct / 100);
-              const adSpend = roas > 0 ? totalGross / roas : 0;
-              results = { daily, daysLeft, totalGross, delivered, totalExp, adSpend, netCash: target };
+              const c = computeFromGross(totalGross);
+              results = { daily, daysLeft, totalGross, ...c, netCash: target };
             }
           }
 
@@ -2375,9 +2381,46 @@ Important: If you see multiple amounts, use the total/final amount. For bank tra
                 </div>
               )}
               <div style={{ fontSize: 11, color: T.textSoft, marginTop: 4 }}>
-                {daysLeft} day{daysLeft !== 1 ? "s" : ""} from today · Using pipeline presets (margin {netMarginPct.toFixed(1)}%)
+                {daysLeft} day{daysLeft !== 1 ? "s" : ""} from today · Margin {netMarginPct.toFixed(1)}%
               </div>
             </div>
+
+            {/* Editable Expense Rates */}
+            <button onClick={() => setShowCalcRates(!showCalcRates)} style={{ width: "100%", background: T.card, border: `1px solid ${T.cardBorder}`, color: T.text, padding: "10px 14px", borderRadius: 8, cursor: "pointer", fontSize: 12, fontWeight: 600, marginBottom: showCalcRates ? 0 : 14, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <span>⚙️ Expense Rates ({(totalExpPct + adsPctEq).toFixed(1)}% total){calcExtras.length > 0 ? ` · +${calcExtras.length} custom` : ""}</span>
+              <span>{showCalcRates ? "▲" : "▼"}</span>
+            </button>
+            {showCalcRates && (
+              <div style={{ ...FmS, marginTop: 0, borderTopLeftRadius: 0, borderTopRightRadius: 0 }}>
+                <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "1fr 1fr 1fr 1fr", gap: 8, marginBottom: 10 }}>
+                  <div><span style={L}>Delivery %</span><input style={I} type="number" step="0.1" value={cr.deliveryRate} onChange={e => setCalcRates({ ...cr, deliveryRate: e.target.value })} /></div>
+                  <div><span style={L}>Shipping %</span><input style={I} type="number" step="0.1" value={cr.shippingPct} onChange={e => setCalcRates({ ...cr, shippingPct: e.target.value })} /></div>
+                  <div><span style={L}>COD Fees %</span><input style={I} type="number" step="0.1" value={cr.codPct} onChange={e => setCalcRates({ ...cr, codPct: e.target.value })} /></div>
+                  <div><span style={L}>COGS %</span><input style={I} type="number" step="0.1" value={cr.cogsPct} onChange={e => setCalcRates({ ...cr, cogsPct: e.target.value })} /></div>
+                  <div><span style={L}>Salaries & OpEx %</span><input style={I} type="number" step="0.1" value={cr.salariesPct} onChange={e => setCalcRates({ ...cr, salariesPct: e.target.value })} /></div>
+                  <div><span style={L}>Other %</span><input style={I} type="number" step="0.1" value={cr.otherPct} onChange={e => setCalcRates({ ...cr, otherPct: e.target.value })} /></div>
+                  <div><span style={L}>Ads ROAS</span><input style={I} type="number" step="0.1" value={cr.adsRoas} onChange={e => setCalcRates({ ...cr, adsRoas: e.target.value })} /></div>
+                </div>
+
+                {/* Custom extra expenses */}
+                {calcExtras.length > 0 && (
+                  <div style={{ marginBottom: 10 }}>
+                    <div style={{ fontSize: 10, fontWeight: 700, color: T.textSoft, textTransform: "uppercase" as const, letterSpacing: 1, marginBottom: 6 }}>Custom Expenses</div>
+                    {calcExtras.map((ex, i) => (
+                      <div key={i} style={{ display: "flex", gap: 6, marginBottom: 4, alignItems: "center" }}>
+                        <input style={{ ...I, flex: 2 }} value={ex.name} onChange={e => { const ne = [...calcExtras]; ne[i] = { ...ne[i], name: e.target.value }; setCalcExtras(ne); }} placeholder="Expense name" />
+                        <input style={{ ...I, flex: 1 }} type="number" step="0.1" value={ex.pct} onChange={e => { const ne = [...calcExtras]; ne[i] = { ...ne[i], pct: e.target.value }; setCalcExtras(ne); }} placeholder="%" />
+                        <button onClick={() => setCalcExtras(calcExtras.filter((_, j) => j !== i))} style={{ background: "none", border: `1px solid #FF6B6B33`, color: "#FF6B6B", padding: "6px 10px", borderRadius: 6, cursor: "pointer", fontSize: 12, flexShrink: 0 }}>✕</button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <div style={{ display: "flex", gap: 6 }}>
+                  <button onClick={() => setCalcExtras([...calcExtras, { name: "", pct: "" }])} style={{ ...BtnS("transparent"), border: `1px solid ${T.cardBorder}`, color: T.text, fontSize: 11 }}>+ Add Expense</button>
+                  <button onClick={() => setCalcRates({ shippingPct: "13.5", codPct: "1", deliveryRate: "75", salariesPct: "6", otherPct: "1", cogsPct: "10", adsRoas: "4" })} style={{ ...BtnS("transparent"), border: `1px solid ${T.cardBorder}`, color: T.textSoft, fontSize: 11 }}>Reset Defaults</button>
+                </div>
+              </div>
+            )}
 
             {/* Results */}
             {results && (
@@ -2403,13 +2446,14 @@ Important: If you see multiple amounts, use the total/final amount. For bank tra
                 {[
                   ["Total Gross Sales", results.totalGross, "#E9C46A"],
                   [`Delivered Revenue (${delRate}%)`, results.delivered, "#95E77E"],
-                  [`Shipping (${shipPct}%)`, -results.totalGross * shipPct / 100, "#FF6B6B"],
-                  [`COD Fees (${codPct}%)`, -results.totalGross * codPct / 100, "#FF6B6B"],
-                  [`COGS (${cogPct}%)`, -results.totalGross * cogPct / 100, "#FF6B6B"],
-                  [`Salaries & OpEx (${salPct}%)`, -results.totalGross * salPct / 100, "#FF6B6B"],
-                  [`Other (${othPct}%)`, -results.totalGross * othPct / 100, "#FF6B6B"],
-                  [`Ad Spend (ROAS ${roas})`, -results.adSpend, "#FF6B6B"],
-                ].filter(([, v]) => v !== 0).map(([label, val, clr], i) => (
+                  ...(shipPct > 0 ? [[`Shipping (${shipPct}%)`, -results.totalGross * shipPct / 100, "#FF6B6B"]] : []),
+                  ...(codPct > 0 ? [[`COD Fees (${codPct}%)`, -results.totalGross * codPct / 100, "#FF6B6B"]] : []),
+                  ...(cogPct > 0 ? [[`COGS (${cogPct}%)`, -results.totalGross * cogPct / 100, "#FF6B6B"]] : []),
+                  ...(salPct > 0 ? [[`Salaries & OpEx (${salPct}%)`, -results.totalGross * salPct / 100, "#FF6B6B"]] : []),
+                  ...(othPct > 0 ? [[`Other (${othPct}%)`, -results.totalGross * othPct / 100, "#FF6B6B"]] : []),
+                  ...calcExtras.filter(e => (parseFloat(e.pct) || 0) > 0).map(e => [`${e.name || "Custom"} (${e.pct}%)`, -results.totalGross * (parseFloat(e.pct) || 0) / 100, "#FF6B6B"]),
+                  ...(roas > 0 ? [[`Ad Spend (ROAS ${roas})`, -results.adSpend, "#FF6B6B"]] : []),
+                ].map(([label, val, clr], i) => (
                   <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "4px 0", borderBottom: `1px solid ${T.divider}` }}>
                     <span style={{ color: T.text, fontSize: 12 }}>{label as string}</span>
                     <span style={{ fontWeight: 600, fontSize: 12, color: clr as string }}>{(val as number) < 0 ? "-" : ""}{fm(Math.abs(val as number), dCur)}</span>
@@ -2444,22 +2488,6 @@ Important: If you see multiple amounts, use the total/final amount. For bank tra
               </div>
             )}
 
-            {/* Presets reference */}
-            <div style={{ ...FmS, marginTop: 14 }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: T.textSoft, marginBottom: 8 }}>📋 Using Pipeline Presets</div>
-              <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "1fr 1fr 1fr 1fr", gap: 6 }}>
-                {[
-                  ["Delivery", `${delRate}%`], ["Shipping", `${shipPct}%`], ["COD", `${codPct}%`], ["COGS", `${cogPct}%`],
-                  ["Salaries", `${salPct}%`], ["Other", `${othPct}%`], ["Ads ROAS", `${roas}x`], ["Net Margin", `${netMarginPct.toFixed(1)}%`],
-                ].map(([label, val], i) => (
-                  <div key={i} style={{ display: "flex", justifyContent: "space-between", fontSize: 11, padding: "4px 0" }}>
-                    <span style={{ color: T.textSoft }}>{label}</span>
-                    <span style={{ color: T.textWhite, fontWeight: 600 }}>{val}</span>
-                  </div>
-                ))}
-              </div>
-              <div style={{ fontSize: 10, color: T.textMuted, marginTop: 6 }}>Edit these in Pipeline → Add → preset fields</div>
-            </div>
           </div>
           );
         })()}
