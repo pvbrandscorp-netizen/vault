@@ -120,6 +120,7 @@ export default function Vault() {
   const [assetSub, setAssetSub] = useState("fixed");
   const [accFilter, setAccFilter] = useState<string[]>(["all"]);
   const [debtFilter, setDebtFilter] = useState<string[]>(["all"]);
+  const [paidDues, setPaidDues] = useState<Record<string, boolean>>({});
   const [scanResult, setScanResult] = useState<AnyState>(null);
   const [scanLoading, setScanLoading] = useState(false);
   const [scanImg, setScanImg] = useState<string | null>(null);
@@ -163,6 +164,7 @@ export default function Vault() {
   const snapsRef = useRef(snaps);
   const ratesRef = useRef(rates);
   const businessesRef = useRef(businesses);
+  const paidDuesRef = useRef(paidDues);
   useEffect(() => { accountsRef.current = accounts; }, [accounts]);
   useEffect(() => { debtsRef.current = debts; }, [debts]);
   useEffect(() => { receivablesRef.current = receivables; }, [receivables]);
@@ -175,6 +177,7 @@ export default function Vault() {
   useEffect(() => { snapsRef.current = snaps; }, [snaps]);
   useEffect(() => { ratesRef.current = rates; }, [rates]);
   useEffect(() => { businessesRef.current = businesses; }, [businesses]);
+  useEffect(() => { paidDuesRef.current = paidDues; }, [paidDues]);
 
   const [af, setAf] = useState<AnyState>({ name: "", category: "bank", scope: "personal", balance: "", currency: "PHP", notes: "" });
   const [df, setDf] = useState<AnyState>({ name: "", type: "credit_card", scope: "personal", creditLimit: "", outstanding: "", dueAmount: "", dueDate: "", currency: "PHP", notes: "", holder: "", statementDate: "" });
@@ -213,6 +216,7 @@ export default function Vault() {
           setSnaps(d.snaps || []);
           if (d.rates) setRates(d.rates);
           if (d.businesses) setBusinesses(d.businesses);
+          if (d.paidDues) setPaidDues(d.paidDues);
         }
       } catch {
         // First login or no data yet — start fresh
@@ -255,7 +259,7 @@ export default function Vault() {
         accounts: accountsRef.current, debts: debtsRef.current, receivables: receivablesRef.current,
         cryptos: cryptosRef.current, txns: txnsRef.current, pipelines: pipelinesRef.current,
         assets: assetsRef.current, inventory: inventoryRef.current, pnlBatches: pnlBatchesRef.current,
-        snaps: snapsRef.current, rates: ratesRef.current, businesses: businessesRef.current
+        snaps: snapsRef.current, rates: ratesRef.current, businesses: businessesRef.current, paidDues: paidDuesRef.current
       };
       saveToSupabase(userId, data);
     }, 1500);
@@ -1010,6 +1014,128 @@ Important: If you see multiple amounts, use the total/final amount. For bank tra
           </div>}
           {tReceivable > 0 && <div style={{ ...Cd("#26A17B"), marginBottom: 8, display: "flex", justifyContent: "space-between" }}><div><div style={L}>Receivables</div><div style={{ fontSize: 17, fontWeight: 700, color: "#26A17B", marginTop: 3 }}>{masked(fm(tReceivable, dCur, true))}</div></div><div style={{ fontSize: 10, color: T.textSoft, alignSelf: "center" }}>{openR.length} open</div></div>}
           {activeP.length > 0 && <div style={{ ...Cd("#E9C46A"), marginBottom: 8, display: "flex", justifyContent: "space-between" }}><div><div style={L}>Pipeline (Expected Net)</div><div style={{ fontSize: 17, fontWeight: 700, color: "#E9C46A", marginTop: 3 }}>{masked(fm(pipelineNet, dCur, true))}</div></div><div style={{ fontSize: 10, color: T.textSoft, alignSelf: "center" }}>{activeP.length} active · {masked(fm(pipelineGross, dCur, true))} gross</div></div>}
+
+          {/* ── Upcoming Payments ── */}
+          {(() => {
+            const today = new Date(); today.setHours(0,0,0,0);
+            const upcoming = sD.filter((d: AnyState) => {
+              if (!d.dueDate || !d.dueAmount) return false;
+              const due = new Date(d.dueDate); due.setHours(0,0,0,0);
+              const diff = Math.ceil((due.getTime() - today.getTime()) / 864e5);
+              return diff >= -3 && diff <= 7; // show 3 days overdue to 7 days ahead
+            }).sort((a: AnyState, b: AnyState) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime());
+            if (upcoming.length === 0) return null;
+            return (
+              <div style={{ background: T.card, borderRadius: 12, padding: 14, marginBottom: 14, border: `1px solid ${T.cardBorder}` }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: "#FFD93D", textTransform: "uppercase" as const, letterSpacing: 2, marginBottom: 10 }}>📅 Upcoming Payments</div>
+                {upcoming.map((d: AnyState) => {
+                  const due = new Date(d.dueDate); due.setHours(0,0,0,0);
+                  const diff = Math.ceil((due.getTime() - today.getTime()) / 864e5);
+                  const overdue = diff < 0;
+                  const dueToday = diff === 0;
+                  const paidKey = `${d.id}-${d.dueDate}`;
+                  const isPaid = paidDues[paidKey];
+                  const urgentColor = overdue ? "#FF4444" : dueToday ? "#FF6B6B" : diff <= 3 ? "#FFD93D" : "#95E77E";
+                  return (
+                    <div key={d.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 0", borderBottom: `1px solid ${T.divider}`, opacity: isPaid ? 0.4 : 1 }}>
+                      <button onClick={() => { const np = { ...paidDues, [paidKey]: !isPaid }; setPaidDues(np); save(); }}
+                        style={{ width: 22, height: 22, borderRadius: 6, border: `2px solid ${isPaid ? "#95E77E" : urgentColor}`, background: isPaid ? "#95E77E22" : "transparent", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, color: "#95E77E", flexShrink: 0 }}>
+                        {isPaid ? "✓" : ""}
+                      </button>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: 13, fontWeight: 600, color: isPaid ? T.textSoft : T.textWhite, textDecoration: isPaid ? "line-through" : "none" }}>
+                          {DEBT_TYPES[d.type]?.i || "💳"} {d.name}
+                        </div>
+                        <div style={{ fontSize: 10, color: T.textSoft }}>
+                          {d.holder ? `${d.holder} · ` : ""}{getBizShort(d.scope)}
+                          {d.statementDate ? ` · Stmt: ${d.statementDate}` : ""}
+                        </div>
+                      </div>
+                      <div style={{ textAlign: "right" as const }}>
+                        <div style={{ fontSize: 14, fontWeight: 700, color: isPaid ? T.textSoft : urgentColor }}>{masked(fm(d.dueAmount, d.currency))}</div>
+                        <div style={{ fontSize: 10, fontWeight: 600, color: urgentColor }}>
+                          {overdue ? `⚠️ ${Math.abs(diff)}d overdue` : dueToday ? "⚡ Due today" : `${diff}d left`}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+                <div style={{ display: "flex", justifyContent: "space-between", paddingTop: 10, fontSize: 12 }}>
+                  <span style={{ color: T.textSoft }}>{upcoming.filter((d: AnyState) => paidDues[`${d.id}-${d.dueDate}`]).length}/{upcoming.length} paid</span>
+                  <span style={{ fontWeight: 700, color: "#FFD93D" }}>Total due: {masked(fm(upcoming.filter((d: AnyState) => !paidDues[`${d.id}-${d.dueDate}`]).reduce((s: number, d: AnyState) => s + cv(d.dueAmount || 0, d.currency, dCur, rates), 0), dCur, true))}</span>
+                </div>
+              </div>
+            );
+          })()}
+
+          {/* ── Smart Card Advisor ── */}
+          {(() => {
+            const today = new Date();
+            const todayDay = today.getDate();
+            const cardsWithStatement = sD.filter((d: AnyState) => d.type === "credit_card" && d.statementDate && d.outstanding < (d.creditLimit || 0));
+            if (cardsWithStatement.length === 0) return null;
+
+            const analyzed = cardsWithStatement.map((d: AnyState) => {
+              const stmtDay = new Date(d.statementDate).getDate();
+              // Days since last statement cycle started
+              let daysSinceStmt: number;
+              if (todayDay >= stmtDay) {
+                daysSinceStmt = todayDay - stmtDay;
+              } else {
+                // Statement day is later in month — we're in the previous cycle
+                const daysInLastMonth = new Date(today.getFullYear(), today.getMonth(), 0).getDate();
+                daysSinceStmt = (daysInLastMonth - stmtDay) + todayDay;
+              }
+              const usable = daysSinceStmt <= 7;
+              const available = (d.creditLimit || 0) - d.outstanding;
+              const daysLeft = 7 - daysSinceStmt;
+              return { ...d, stmtDay, daysSinceStmt, usable, available, daysLeft };
+            }).sort((a: AnyState, b: AnyState) => b.usable - a.usable || b.available - a.available);
+
+            const usableCards = analyzed.filter((c: AnyState) => c.usable);
+            const notUsable = analyzed.filter((c: AnyState) => !c.usable);
+
+            return (
+              <div style={{ background: T.card, borderRadius: 12, padding: 14, marginBottom: 14, border: `1px solid ${T.cardBorder}` }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: "#4ECDC4", textTransform: "uppercase" as const, letterSpacing: 2, marginBottom: 10 }}>💳 Smart Card Advisor</div>
+                <div style={{ fontSize: 11, color: T.textSoft, marginBottom: 10 }}>Cards within 7 days of statement date are safe to use for new purchases.</div>
+                {usableCards.length > 0 && (
+                  <div style={{ marginBottom: 8 }}>
+                    <div style={{ fontSize: 10, fontWeight: 700, color: "#95E77E", textTransform: "uppercase" as const, marginBottom: 6 }}>✅ Safe to use</div>
+                    {usableCards.map((c: AnyState) => (
+                      <div key={c.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 10px", background: "#95E77E11", borderRadius: 8, marginBottom: 4, borderLeft: "3px solid #95E77E" }}>
+                        <div>
+                          <div style={{ fontSize: 13, fontWeight: 600, color: T.textWhite }}>{c.name}</div>
+                          <div style={{ fontSize: 10, color: T.textSoft }}>{c.holder ? `${c.holder} · ` : ""}Stmt day {c.stmtDay} · {c.daysLeft}d left to use</div>
+                        </div>
+                        <div style={{ textAlign: "right" as const }}>
+                          <div style={{ fontSize: 14, fontWeight: 700, color: "#95E77E" }}>{masked(fm(c.available, c.currency))}</div>
+                          <div style={{ fontSize: 9, color: T.textSoft }}>available</div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {notUsable.length > 0 && (
+                  <div>
+                    <div style={{ fontSize: 10, fontWeight: 700, color: "#FF6B6B", textTransform: "uppercase" as const, marginBottom: 6 }}>⛔ Avoid using</div>
+                    {notUsable.map((c: AnyState) => (
+                      <div key={c.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 10px", background: "#FF6B6B08", borderRadius: 8, marginBottom: 4, borderLeft: "3px solid #FF6B6B33", opacity: 0.6 }}>
+                        <div>
+                          <div style={{ fontSize: 13, fontWeight: 600, color: T.text }}>{c.name}</div>
+                          <div style={{ fontSize: 10, color: T.textSoft }}>{c.holder ? `${c.holder} · ` : ""}Stmt day {c.stmtDay} · {c.daysSinceStmt}d since stmt</div>
+                        </div>
+                        <div style={{ textAlign: "right" as const }}>
+                          <div style={{ fontSize: 13, color: T.textSoft }}>{masked(fm(c.available, c.currency))}</div>
+                          <div style={{ fontSize: 9, color: "#FF6B6B" }}>too close to statement</div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })()}
 
           {/* Net Worth Calculator */}
           <div style={{ background: "#12141A", borderRadius: 12, padding: "14px", marginBottom: 16 }}>
