@@ -116,6 +116,10 @@ export default function Vault() {
   const [calcRates, setCalcRates] = useState<Record<string, string>>({ shippingPct: "13.5", codPct: "1", deliveryRate: "75", salariesPct: "6", otherPct: "1", cogsPct: "10", adsRoas: "4" });
   const [calcExtras, setCalcExtras] = useState<Array<{ name: string; pct: string }>>([]);
   const [showCalcRates, setShowCalcRates] = useState(false);
+  const [marketData, setMarketData] = useState<AnyState[]>([]);
+  const [marketLoading, setMarketLoading] = useState(false);
+  const [marketSort, setMarketSort] = useState("market_cap");
+  const [marketFilter, setMarketFilter] = useState("all");
   const [isMobile, setIsMobile] = useState(false);
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth < 768);
@@ -871,6 +875,7 @@ Important: If you see multiple amounts, use the total/final amount. For bank tra
             ["pnl", "💹", "P&L Import"],
             ["report", "📊", "Reports"],
             ["calc", "🧮", "Cash Flow Calc"],
+            ["market", "📡", "Crypto Market"],
             ["scan", "📸", "Smart Scan"],
             ["tx", "📝", "Activity"],
           ].map(([k, icon, label]) => (
@@ -2488,6 +2493,114 @@ Important: If you see multiple amounts, use the total/final amount. For bank tra
               </div>
             )}
 
+          </div>
+          );
+        })()}
+
+        {/* ═══ CRYPTO MARKET ═══ */}
+        {view === "market" && (() => {
+          const fetchMarket = async () => {
+            setMarketLoading(true);
+            try {
+              const res = await fetch("/api/crypto");
+              const data = await res.json();
+              if (Array.isArray(data)) setMarketData(data);
+            } catch { /* silent */ }
+            setMarketLoading(false);
+          };
+
+          const stablecoins = ["tether", "usd-coin"];
+          const filtered = marketData.filter((c: AnyState) => {
+            if (marketFilter === "gainers") return (c.price_change_percentage_24h || 0) > 0 && !stablecoins.includes(c.id);
+            if (marketFilter === "losers") return (c.price_change_percentage_24h || 0) < 0 && !stablecoins.includes(c.id);
+            if (marketFilter === "nocoin") return !stablecoins.includes(c.id);
+            return true;
+          });
+
+          const sorted = [...filtered].sort((a: AnyState, b: AnyState) => {
+            if (marketSort === "price") return b.current_price - a.current_price;
+            if (marketSort === "24h") return (b.price_change_percentage_24h || 0) - (a.price_change_percentage_24h || 0);
+            if (marketSort === "7d") return (b.price_change_percentage_7d_in_currency || 0) - (a.price_change_percentage_7d_in_currency || 0);
+            return b.market_cap - a.market_cap;
+          });
+
+          const fmUsd = (v: number) => v >= 1 ? `$${v.toLocaleString("en", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : `$${v.toFixed(6)}`;
+          const fmMcap = (v: number) => v >= 1e12 ? `$${(v/1e12).toFixed(2)}T` : v >= 1e9 ? `$${(v/1e9).toFixed(2)}B` : v >= 1e6 ? `$${(v/1e6).toFixed(1)}M` : `$${v.toLocaleString("en")}`;
+          const pctClr = (v: number) => v > 0 ? "#95E77E" : v < 0 ? "#FF6B6B" : T.textSoft;
+
+          return (
+          <div>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+              <div style={Sec}>📡 Crypto Market</div>
+              <button onClick={fetchMarket} disabled={marketLoading} style={{ ...BtnS(marketLoading ? "#333" : "#4ECDC4"), fontSize: 11, padding: "6px 14px" }}>
+                {marketLoading ? "Loading..." : marketData.length > 0 ? "↻ Refresh" : "Load Prices"}
+              </button>
+            </div>
+
+            {marketData.length > 0 && (<>
+              {/* Filters */}
+              <div style={{ display: "flex", gap: 4, flexWrap: "wrap" as const, marginBottom: 10 }}>
+                {[["all", "All"], ["nocoin", "No Stables"], ["gainers", "📈 Gainers"], ["losers", "📉 Losers"]].map(([k, l]) => (
+                  <button key={k} onClick={() => setMarketFilter(k)} style={{ background: marketFilter === k ? T.card : "transparent", border: `1px solid ${marketFilter === k ? "#4ECDC4" : T.cardBorder}`, color: marketFilter === k ? "#4ECDC4" : T.textSoft, padding: "4px 10px", borderRadius: 20, cursor: "pointer", fontSize: 10, fontWeight: 600 }}>{l}</button>
+                ))}
+              </div>
+              {/* Sort */}
+              <div style={{ display: "flex", gap: 4, marginBottom: 14 }}>
+                {[["market_cap", "Market Cap"], ["price", "Price"], ["24h", "24h %"], ["7d", "7d %"]].map(([k, l]) => (
+                  <button key={k} onClick={() => setMarketSort(k)} style={{ background: "transparent", border: `1px solid ${marketSort === k ? T.textSoft : T.cardBorder}`, color: marketSort === k ? T.textWhite : T.textMuted, padding: "3px 8px", borderRadius: 4, cursor: "pointer", fontSize: 9, fontWeight: 600 }}>{l}</button>
+                ))}
+              </div>
+
+              {/* Coin list */}
+              {sorted.map((coin: AnyState, i: number) => {
+                const pct24 = coin.price_change_percentage_24h || 0;
+                const pct7d = coin.price_change_percentage_7d_in_currency || 0;
+                const pct1h = coin.price_change_percentage_1h_in_currency || 0;
+                const spark = coin.sparkline_in_7d?.price || [];
+                const owned = cryptos.find((c: AnyState) => CRYPTO_DEF[c.coin]?.cg === coin.id);
+
+                return (
+                  <div key={coin.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 8px", background: i % 2 === 0 ? T.card : "transparent", borderRadius: 8, marginBottom: 2 }}>
+                    <div style={{ fontSize: 10, color: T.textMuted, width: 18, textAlign: "center" as const }}>{i + 1}</div>
+                    {coin.image && <img src={coin.image} style={{ width: 24, height: 24, borderRadius: 12 }} alt="" />}
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                        <span style={{ fontSize: 13, fontWeight: 700, color: T.textWhite }}>{coin.symbol?.toUpperCase()}</span>
+                        {owned && <span style={{ fontSize: 8, background: "#4ECDC422", color: "#4ECDC4", padding: "1px 4px", borderRadius: 3 }}>OWNED</span>}
+                      </div>
+                      <div style={{ fontSize: 10, color: T.textSoft, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" as const }}>{coin.name}</div>
+                    </div>
+                    <div style={{ textAlign: "right" as const, minWidth: 80 }}>
+                      <div style={{ fontSize: 12, fontWeight: 700, color: T.textWhite }}>{fmUsd(coin.current_price)}</div>
+                      <div style={{ fontSize: 10, color: T.textSoft }}>{fmMcap(coin.market_cap)}</div>
+                    </div>
+                    <div style={{ textAlign: "right" as const, minWidth: isMobile ? 45 : 100 }}>
+                      {!isMobile && <div style={{ fontSize: 10, color: pctClr(pct1h) }}>{pct1h >= 0 ? "+" : ""}{pct1h.toFixed(1)}% 1h</div>}
+                      <div style={{ fontSize: 11, fontWeight: 700, color: pctClr(pct24) }}>{pct24 >= 0 ? "+" : ""}{pct24.toFixed(2)}%</div>
+                      <div style={{ fontSize: 10, color: pctClr(pct7d) }}>{pct7d >= 0 ? "+" : ""}{pct7d.toFixed(1)}% 7d</div>
+                    </div>
+                    {/* Mini sparkline */}
+                    {!isMobile && spark.length > 10 && (
+                      <svg width="60" height="24" viewBox={`0 0 60 24`} style={{ flexShrink: 0 }}>
+                        {(() => {
+                          const mn = Math.min(...spark); const mx = Math.max(...spark); const rng = mx - mn || 1;
+                          const pts = spark.filter((_: AnyState, j: number) => j % Math.ceil(spark.length / 30) === 0).map((v: number, j: number, a: AnyState[]) => `${(j / (a.length - 1)) * 60},${24 - ((v - mn) / rng) * 22}`).join(" ");
+                          return <polyline points={pts} fill="none" stroke={pct7d >= 0 ? "#95E77E" : "#FF6B6B"} strokeWidth="1.5" />;
+                        })()}
+                      </svg>
+                    )}
+                  </div>
+                );
+              })}
+            </>)}
+
+            {marketData.length === 0 && !marketLoading && (
+              <div style={{ textAlign: "center", padding: 40, color: T.textSoft }}>
+                <div style={{ fontSize: 32, marginBottom: 8 }}>📡</div>
+                <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>Crypto Market Data</div>
+                <div style={{ fontSize: 12 }}>Click "Load Prices" to fetch live prices, 24h/7d changes, market cap, and sparklines for top 20 coins.</div>
+              </div>
+            )}
           </div>
           );
         })()}
