@@ -121,6 +121,9 @@ export default function Vault() {
   const [accFilter, setAccFilter] = useState<string[]>(["all"]);
   const [debtFilter, setDebtFilter] = useState<string[]>(["all"]);
   const [paidDues, setPaidDues] = useState<Record<string, boolean>>({});
+  const [showAllDues, setShowAllDues] = useState(false);
+  const [showAllSafe, setShowAllSafe] = useState(false);
+  const [showAllAvoid, setShowAllAvoid] = useState(false);
   const [scanResult, setScanResult] = useState<AnyState>(null);
   const [scanLoading, setScanLoading] = useState(false);
   const [scanImg, setScanImg] = useState<string | null>(null);
@@ -1039,7 +1042,7 @@ Important: If you see multiple amounts, use the total/final amount. For bank tra
             return (
               <div style={{ background: T.card, borderRadius: 12, padding: 14, marginBottom: 14, border: `1px solid ${T.cardBorder}` }}>
                 <div style={{ fontSize: 11, fontWeight: 700, color: "#FFD93D", textTransform: "uppercase" as const, letterSpacing: 2, marginBottom: 10 }}>📅 Upcoming Payments</div>
-                {upcoming.map((d: AnyState) => {
+                {(showAllDues ? upcoming : upcoming.slice(0, 3)).map((d: AnyState) => {
                   const due = new Date(d.dueDate); due.setHours(0,0,0,0);
                   const diff = Math.ceil((due.getTime() - today.getTime()) / 864e5);
                   const overdue = diff < 0;
@@ -1071,6 +1074,11 @@ Important: If you see multiple amounts, use the total/final amount. For bank tra
                     </div>
                   );
                 })}
+                {upcoming.length > 3 && (
+                  <button onClick={() => setShowAllDues(!showAllDues)} style={{ width: "100%", background: "none", border: "none", color: "#FFD93D", cursor: "pointer", fontSize: 11, fontWeight: 600, padding: "8px 0 2px", textAlign: "center" as const }}>
+                    {showAllDues ? "▲ Show less" : `▼ Show ${upcoming.length - 3} more`}
+                  </button>
+                )}
                 <div style={{ display: "flex", justifyContent: "space-between", paddingTop: 10, fontSize: 12 }}>
                   <span style={{ color: T.textSoft }}>{upcoming.filter((d: AnyState) => paidDues[`${d.id}-${d.dueDate}`]).length}/{upcoming.length} paid</span>
                   <span style={{ fontWeight: 700, color: "#FFD93D" }}>Total due: {masked(fm(upcoming.filter((d: AnyState) => !paidDues[`${d.id}-${d.dueDate}`]).reduce((s: number, d: AnyState) => s + cv(d.dueAmount || 0, d.currency, dCur, rates), 0), dCur, true))}</span>
@@ -1112,8 +1120,8 @@ Important: If you see multiple amounts, use the total/final amount. For bank tra
                 <div style={{ fontSize: 11, color: T.textSoft, marginBottom: 10 }}>Cards within 7 days of statement date are safe to use for new purchases.</div>
                 {usableCards.length > 0 && (
                   <div style={{ marginBottom: 8 }}>
-                    <div style={{ fontSize: 10, fontWeight: 700, color: "#95E77E", textTransform: "uppercase" as const, marginBottom: 6 }}>✅ Safe to use</div>
-                    {usableCards.map((c: AnyState) => (
+                    <div style={{ fontSize: 10, fontWeight: 700, color: "#95E77E", textTransform: "uppercase" as const, marginBottom: 6 }}>✅ Safe to use ({usableCards.length})</div>
+                    {(showAllSafe ? usableCards : usableCards.slice(0, 3)).map((c: AnyState) => (
                       <div key={c.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 10px", background: "#95E77E11", borderRadius: 8, marginBottom: 4, borderLeft: "3px solid #95E77E" }}>
                         <div>
                           <div style={{ fontSize: 13, fontWeight: 600, color: T.textWhite }}>{c.name}</div>
@@ -1125,12 +1133,17 @@ Important: If you see multiple amounts, use the total/final amount. For bank tra
                         </div>
                       </div>
                     ))}
+                    {usableCards.length > 3 && (
+                      <button onClick={() => setShowAllSafe(!showAllSafe)} style={{ width: "100%", background: "none", border: "none", color: "#95E77E", cursor: "pointer", fontSize: 11, fontWeight: 600, padding: "6px 0", textAlign: "center" as const }}>
+                        {showAllSafe ? "▲ Show less" : `▼ Show ${usableCards.length - 3} more`}
+                      </button>
+                    )}
                   </div>
                 )}
                 {notUsable.length > 0 && (
                   <div>
-                    <div style={{ fontSize: 10, fontWeight: 700, color: "#FF6B6B", textTransform: "uppercase" as const, marginBottom: 6 }}>⛔ Avoid using</div>
-                    {notUsable.map((c: AnyState) => (
+                    <div style={{ fontSize: 10, fontWeight: 700, color: "#FF6B6B", textTransform: "uppercase" as const, marginBottom: 6 }}>⛔ Avoid using ({notUsable.length})</div>
+                    {(showAllAvoid ? notUsable : notUsable.slice(0, 3)).map((c: AnyState) => (
                       <div key={c.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 10px", background: "#FF6B6B08", borderRadius: 8, marginBottom: 4, borderLeft: "3px solid #FF6B6B33", opacity: 0.6 }}>
                         <div>
                           <div style={{ fontSize: 13, fontWeight: 600, color: T.text }}>{c.name}</div>
@@ -1142,6 +1155,11 @@ Important: If you see multiple amounts, use the total/final amount. For bank tra
                         </div>
                       </div>
                     ))}
+                    {notUsable.length > 3 && (
+                      <button onClick={() => setShowAllAvoid(!showAllAvoid)} style={{ width: "100%", background: "none", border: "none", color: "#FF6B6B", cursor: "pointer", fontSize: 11, fontWeight: 600, padding: "6px 0", textAlign: "center" as const }}>
+                        {showAllAvoid ? "▲ Show less" : `▼ Show ${notUsable.length - 3} more`}
+                      </button>
+                    )}
                   </div>
                 )}
               </div>
