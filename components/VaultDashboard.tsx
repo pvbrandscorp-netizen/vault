@@ -823,11 +823,11 @@ Important: If you see multiple amounts, use the total/final amount. For bank tra
       {/* ── SIDEBAR ── */}
       <div style={{
         ...(isMobile
-          ? { width: 260, minWidth: 260, position: "fixed" as const, top: 0, left: 0, zIndex: 999, transform: mobileNav ? "translateX(0)" : "translateX(-100%)", transition: "transform .25s ease", paddingBottom: 80 }
+          ? { width: 260, minWidth: 260, position: "fixed" as const, top: 0, left: 0, zIndex: 999, transform: mobileNav ? "translateX(0)" : "translateX(-100%)", transition: "transform .25s ease" }
           : { width: sidebarCollapsed ? 60 : 220, minWidth: sidebarCollapsed ? 60 : 220, position: "sticky" as const, top: 0, transition: "width .2s, min-width .2s" }
         ),
         background: T.sidebar, borderRight: `1px solid ${T.sidebarBorder}`,
-        display: "flex", flexDirection: "column", height: "100vh", overflowY: "auto"
+        display: "flex", flexDirection: "column", height: "100vh", overflow: "hidden"
       }}>
         {/* Logo + Close/Collapse */}
         <div style={{ padding: sidebarCollapsed && !isMobile ? "16px 8px 8px" : "20px 16px 12px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
@@ -849,8 +849,8 @@ Important: If you see multiple amounts, use the total/final amount. For bank tra
           </>)}
         </div>
 
-        {/* Nav */}
-        <div style={{ flex: 1, padding: sidebarCollapsed && !isMobile ? "4px 4px" : "4px 8px" }}>
+        {/* Nav — scrollable so settings stay pinned at bottom */}
+        <div style={{ flex: 1, padding: sidebarCollapsed && !isMobile ? "4px 4px" : "4px 8px", overflowY: "auto", minHeight: 0 }}>
           {[
             ["dash", "📊", "Overview"],
             ["ask", "💬", "Ask Vault"],
@@ -873,9 +873,9 @@ Important: If you see multiple amounts, use the total/final amount. For bank tra
           ))}
         </div>
 
-        {/* Settings — scrollable on mobile */}
+        {/* Settings — pinned at bottom */}
         {!(sidebarCollapsed && !isMobile) && (
-          <div style={{ padding: "12px 12px 16px", borderTop: `1px solid ${T.sidebarBorder}`, flexShrink: 0 }}>
+          <div style={{ padding: isMobile ? "12px 12px 40px" : "12px 12px 16px", borderTop: `1px solid ${T.sidebarBorder}`, flexShrink: 0 }}>
             <div style={{ fontSize: 9, color: T.textSoft, textTransform: "uppercase" as const, letterSpacing: 1, marginBottom: 6 }}>Currency</div>
             <select value={dCur} onChange={e => setDCur(e.target.value)} style={{ background: T.input, border: `1px solid ${T.inputBorder}`, color: "#4ECDC4", padding: "6px 8px", borderRadius: 6, fontSize: 13, outline: "none", fontWeight: 700, width: "100%", marginBottom: 8 }}>{ALL_CUR.map(c => <option key={c}>{c}</option>)}</select>
             <button onClick={() => setDarkMode(!darkMode)} style={{ width: "100%", background: "none", border: `1px solid ${T.inputBorder}`, color: T.navText, padding: "5px", borderRadius: 6, cursor: "pointer", fontSize: 10, marginBottom: 4 }}>{dk ? "☀️ Light Mode" : "🌙 Dark Mode"}</button>
