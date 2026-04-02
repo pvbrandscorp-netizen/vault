@@ -184,7 +184,8 @@ export default function Vault() {
   const [rf, setRf] = useState<AnyState>({ name: "", amount: "", dueDate: "", scope: "personal", currency: "PHP", notes: "", from: "" });
   const [crf, setCrf] = useState<AnyState>({ coin: "BTC", amount: "", scope: "personal", wallet: "" });
   const [tf, setTf] = useState<AnyState>({ accountId: "", toAccountId: "", type: "expense", amount: "", description: "", date: new Date().toISOString().slice(0, 10), receivableId: "", debtId: "", txCat: "", txScope: "personal" });
-  const [pf, setPf] = useState<AnyState>({ name: "", grossValue: "", deliveryRate: "70", shippingCost: "", codFees: "", returnCost: "", otherExpenses: "", parcels: "", date: new Date().toISOString().slice(0, 10), expectedDate: "", scope: "business", currency: "PHP", notes: "", status: "active" });
+  const PIPE_PRESETS = { shippingPct: "13.5", codPct: "1", deliveryRate: "75", salariesPct: "6", otherPct: "1", cogsPct: "10", adsRoas: "4" };
+  const [pf, setPf] = useState<AnyState>({ name: "", grossValue: "", ...PIPE_PRESETS, date: new Date().toISOString().slice(0, 10), expectedDate: "", scope: "business", currency: "PHP", notes: "", status: "active" });
   const [axf, setAxf] = useState<AnyState>({ name: "", category: "vehicle", purchasePrice: "", purchaseDate: "", usefulLife: "5", salvageValue: "0", marketValue: "", appreciationRate: "5", scope: "personal", currency: "PHP", notes: "" });
   const [ivf, setIvf] = useState<AnyState>({ name: "", qty: "", unitCost: "", scope: "business", currency: "PHP", notes: "", sku: "" });
 
@@ -434,11 +435,21 @@ export default function Vault() {
   const tReceivable = sR.reduce((s: number, r: AnyState) => s + cv((r.amount - (r.received || 0)), r.currency, dCur, rates), 0);
   const openR = sR.filter((r: AnyState) => (r.received || 0) < r.amount);
 
-  const pipelineNet = activeP.reduce((s: number, p: AnyState) => {
-    const expRev = p.grossValue * (p.deliveryRate / 100);
-    const totExp = (p.shippingCost || 0) + (p.codFees || 0) + (p.returnCost || 0) + (p.otherExpenses || 0);
-    return s + cv(expRev - totExp, p.currency, dCur, rates);
-  }, 0);
+  // Pipeline computation helper
+  const calcPipe = (p: AnyState) => {
+    const g = p.grossValue || 0;
+    const delivered = g * ((p.deliveryRate || 75) / 100);
+    const shipping = g * ((p.shippingPct || 0) / 100);
+    const cod = g * ((p.codPct || 0) / 100);
+    const salaries = g * ((p.salariesPct || 0) / 100);
+    const other = g * ((p.otherPct || 0) / 100);
+    const cogs = g * ((p.cogsPct || 0) / 100);
+    const adSpend = (p.adsRoas || 0) > 0 ? g / (p.adsRoas || 4) : 0;
+    const totalExp = shipping + cod + salaries + other + cogs + adSpend;
+    const net = delivered - totalExp;
+    return { delivered, shipping, cod, salaries, other, cogs, adSpend, totalExp, net };
+  };
+  const pipelineNet = activeP.reduce((s: number, p: AnyState) => s + cv(calcPipe(p).net, p.currency, dCur, rates), 0);
   const pipelineGross = activeP.reduce((s: number, p: AnyState) => s + cv(p.grossValue, p.currency, dCur, rates), 0);
 
   // tFixedAssets computed after getBookValue is defined
@@ -477,12 +488,12 @@ export default function Vault() {
   // Pipeline CRUD
   const addPipeline = () => {
     if (!pf.name || !rawN(pf.grossValue)) return;
-    const np = [...pipelines, { id: gid(), ...pf, grossValue: parseN(pf.grossValue), deliveryRate: parseFloat(pf.deliveryRate) || 70, shippingCost: parseN(pf.shippingCost), codFees: parseN(pf.codFees), returnCost: parseN(pf.returnCost), otherExpenses: parseN(pf.otherExpenses), parcels: parseN(pf.parcels), actualReceived: 0, actualReturned: 0, actualExpenses: 0 }];
+    const np = [...pipelines, { id: gid(), ...pf, grossValue: parseN(pf.grossValue), deliveryRate: parseFloat(pf.deliveryRate) || 75, shippingPct: parseFloat(pf.shippingPct) || 0, codPct: parseFloat(pf.codPct) || 0, salariesPct: parseFloat(pf.salariesPct) || 0, otherPct: parseFloat(pf.otherPct) || 0, cogsPct: parseFloat(pf.cogsPct) || 0, adsRoas: parseFloat(pf.adsRoas) || 0, actualReceived: 0, actualReturned: 0, actualExpenses: 0 }];
     setPipelines(np); save();
-    setPf({ name: "", grossValue: "", deliveryRate: "70", shippingCost: "", codFees: "", returnCost: "", otherExpenses: "", parcels: "", date: new Date().toISOString().slice(0, 10), expectedDate: "", scope: "business", currency: "PHP", notes: "", status: "active" }); setSf(null);
+    setPf({ name: "", grossValue: "", ...PIPE_PRESETS, date: new Date().toISOString().slice(0, 10), expectedDate: "", scope: "business", currency: "PHP", notes: "", status: "active" }); setSf(null);
   };
   const saveEditPipeline = () => {
-    const np = pipelines.map((p: AnyState) => p.id === eId ? { ...p, ...pf, grossValue: parseN(pf.grossValue), deliveryRate: parseFloat(pf.deliveryRate) || 70, shippingCost: parseN(pf.shippingCost), codFees: parseN(pf.codFees), returnCost: parseN(pf.returnCost), otherExpenses: parseN(pf.otherExpenses), parcels: parseN(pf.parcels) } : p);
+    const np = pipelines.map((p: AnyState) => p.id === eId ? { ...p, ...pf, grossValue: parseN(pf.grossValue), deliveryRate: parseFloat(pf.deliveryRate) || 75, shippingPct: parseFloat(pf.shippingPct) || 0, codPct: parseFloat(pf.codPct) || 0, salariesPct: parseFloat(pf.salariesPct) || 0, otherPct: parseFloat(pf.otherPct) || 0, cogsPct: parseFloat(pf.cogsPct) || 0, adsRoas: parseFloat(pf.adsRoas) || 0 } : p);
     setPipelines(np); save(); setEId(null); setSf(null);
   };
   const updatePipelineActuals = (id: string, field: string, val: string) => {
@@ -1677,20 +1688,56 @@ Important: If you see multiple amounts, use the total/final amount. For bank tra
         {view === "pipe" && (<div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 16 }}>
             <div style={Cd("#E9C46A")}><div style={L}>Gross In-Flight</div><div style={{ fontSize: 18, fontWeight: 700, color: "#E9C46A", marginTop: 3 }}>{fm(pipelineGross, dCur, true)}</div></div>
-            <div style={Cd(pipelineNet >= 0 ? "#95E77E" : "#FF6B6B")}><div style={L}>Expected Net</div><div style={{ fontSize: 18, fontWeight: 700, color: pipelineNet >= 0 ? "#95E77E" : "#FF6B6B", marginTop: 3 }}>{fm(pipelineNet, dCur, true)}</div></div>
+            <div style={Cd(pipelineNet >= 0 ? "#95E77E" : "#FF6B6B")}><div style={L}>Expected Settlement</div><div style={{ fontSize: 18, fontWeight: 700, color: pipelineNet >= 0 ? "#95E77E" : "#FF6B6B", marginTop: 3 }}>{fm(pipelineNet, dCur, true)}</div></div>
           </div>
-          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 14 }}><div style={Sec}>Shipments & Batches</div><button style={BtnS("#E9C46A", "#0B0D12")} onClick={() => { setSf("pipe"); setEId(null); setPf({ name: "", grossValue: "", deliveryRate: "70", shippingCost: "", codFees: "", returnCost: "", otherExpenses: "", parcels: "", date: new Date().toISOString().slice(0, 10), expectedDate: "", scope: scope === "all" ? "business" : scope, currency: "PHP", notes: "", status: "active" }); }}>+ Add</button></div>
+          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 14 }}><div style={Sec}>Pipeline</div><button style={BtnS("#E9C46A", "#0B0D12")} onClick={() => { setSf("pipe"); setEId(null); setPf({ name: "", grossValue: "", ...PIPE_PRESETS, date: new Date().toISOString().slice(0, 10), expectedDate: "", scope: scope === "all" ? "business" : scope, currency: "PHP", notes: "", status: "active" }); }}>+ Add</button></div>
           {sf === "pipe" && (
             <div style={FmS}><div style={{ fontWeight: 700, color: "#fff", marginBottom: 12 }}>{eId ? "Edit" : "New Pipeline Entry"}</div>
               <div style={G2}>
-                <div><span style={L}>Batch Name</span><input style={I} value={pf.name} onChange={e => setPf({ ...pf, name: e.target.value })} placeholder="Batch #45 - March" /></div>
-                <div><span style={L}>Parcels</span><NumIn style={I} value={pf.parcels} onChange={(v: string) => setPf({ ...pf, parcels: v })} placeholder="1,000" /></div>
-                <div><span style={L}>Gross Value</span><NumIn style={I} value={pf.grossValue} onChange={(v: string) => setPf({ ...pf, grossValue: v })} placeholder="300,000" /></div>
-                <div><span style={L}>Delivery Rate %</span><input style={I} type="number" value={pf.deliveryRate} onChange={e => setPf({ ...pf, deliveryRate: e.target.value })} placeholder="70" /></div>
-                <div><span style={L}>Shipping Cost</span><NumIn style={I} value={pf.shippingCost} onChange={(v: string) => setPf({ ...pf, shippingCost: v })} placeholder="0" /></div>
-                <div><span style={L}>COD Fees</span><NumIn style={I} value={pf.codFees} onChange={(v: string) => setPf({ ...pf, codFees: v })} placeholder="0" /></div>
-                <div><span style={L}>Return Cost</span><NumIn style={I} value={pf.returnCost} onChange={(v: string) => setPf({ ...pf, returnCost: v })} placeholder="0" /></div>
-                <div><span style={L}>Other Expenses</span><NumIn style={I} value={pf.otherExpenses} onChange={(v: string) => setPf({ ...pf, otherExpenses: v })} placeholder="0" /></div>
+                <div><span style={L}>Batch Name</span><input style={I} value={pf.name} onChange={e => setPf({ ...pf, name: e.target.value })} placeholder="Batch #45 - April" /></div>
+                <div><span style={L}>Gross Sales Revenue</span><NumIn style={I} value={pf.grossValue} onChange={(v: string) => setPf({ ...pf, grossValue: v })} placeholder="300,000" /></div>
+              </div>
+              <div style={{ fontSize: 11, fontWeight: 700, color: T.textSoft, textTransform: "uppercase" as const, letterSpacing: 1, marginBottom: 8, marginTop: 4 }}>Expense Rates (% of gross · 0 = none)</div>
+              <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "1fr 1fr 1fr 1fr", gap: 8, marginBottom: 10 }}>
+                <div><span style={L}>Shipping %</span><input style={I} type="number" step="0.1" value={pf.shippingPct} onChange={e => setPf({ ...pf, shippingPct: e.target.value })} /></div>
+                <div><span style={L}>COD Fees %</span><input style={I} type="number" step="0.1" value={pf.codPct} onChange={e => setPf({ ...pf, codPct: e.target.value })} /></div>
+                <div><span style={L}>Delivery Rate %</span><input style={I} type="number" step="0.1" value={pf.deliveryRate} onChange={e => setPf({ ...pf, deliveryRate: e.target.value })} /></div>
+                <div><span style={L}>COGS %</span><input style={I} type="number" step="0.1" value={pf.cogsPct} onChange={e => setPf({ ...pf, cogsPct: e.target.value })} /></div>
+                <div><span style={L}>Salaries & OpEx %</span><input style={I} type="number" step="0.1" value={pf.salariesPct} onChange={e => setPf({ ...pf, salariesPct: e.target.value })} /></div>
+                <div><span style={L}>Other Expenses %</span><input style={I} type="number" step="0.1" value={pf.otherPct} onChange={e => setPf({ ...pf, otherPct: e.target.value })} /></div>
+                <div><span style={L}>Ads ROAS</span><input style={I} type="number" step="0.1" value={pf.adsRoas} onChange={e => setPf({ ...pf, adsRoas: e.target.value })} placeholder="4 = Gross/4" /></div>
+              </div>
+              {/* Live preview */}
+              {parseN(pf.grossValue) > 0 && (() => {
+                const preview = calcPipe({ grossValue: parseN(pf.grossValue), deliveryRate: parseFloat(pf.deliveryRate) || 75, shippingPct: parseFloat(pf.shippingPct) || 0, codPct: parseFloat(pf.codPct) || 0, salariesPct: parseFloat(pf.salariesPct) || 0, otherPct: parseFloat(pf.otherPct) || 0, cogsPct: parseFloat(pf.cogsPct) || 0, adsRoas: parseFloat(pf.adsRoas) || 0 });
+                const g = parseN(pf.grossValue);
+                return (
+                  <div style={{ background: T.statBg, borderRadius: 8, padding: 12, marginBottom: 10, border: `1px solid ${T.cardBorder}` }}>
+                    <div style={{ fontSize: 10, fontWeight: 700, color: "#E9C46A", textTransform: "uppercase" as const, letterSpacing: 1, marginBottom: 8 }}>Live Projection</div>
+                    {[
+                      ["Gross Sales", g, "#E9C46A"],
+                      [`Delivered (${pf.deliveryRate}%)`, preview.delivered, "#95E77E"],
+                      ...(preview.shipping > 0 ? [[`Shipping (${pf.shippingPct}%)`, -preview.shipping, "#FF6B6B"]] : []),
+                      ...(preview.cod > 0 ? [[`COD Fees (${pf.codPct}%)`, -preview.cod, "#FF6B6B"]] : []),
+                      ...(preview.cogs > 0 ? [[`COGS (${pf.cogsPct}%)`, -preview.cogs, "#FF6B6B"]] : []),
+                      ...(preview.salaries > 0 ? [[`Salaries & OpEx (${pf.salariesPct}%)`, -preview.salaries, "#FF6B6B"]] : []),
+                      ...(preview.other > 0 ? [[`Other (${pf.otherPct}%)`, -preview.other, "#FF6B6B"]] : []),
+                      ...(preview.adSpend > 0 ? [[`Ad Spend (ROAS ${pf.adsRoas})`, -preview.adSpend, "#FF6B6B"]] : []),
+                    ].map(([label, val, clr], i) => (
+                      <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "3px 0", fontSize: 12 }}>
+                        <span style={{ color: T.textSoft }}>{label as string}</span>
+                        <span style={{ fontWeight: 600, color: clr as string }}>{(val as number) >= 0 ? "" : "-"}{fm(Math.abs(val as number), pf.currency || "PHP")}</span>
+                      </div>
+                    ))}
+                    <div style={{ borderTop: `1px solid ${T.divider}`, marginTop: 6, paddingTop: 6, display: "flex", justifyContent: "space-between", fontSize: 14 }}>
+                      <span style={{ fontWeight: 800, color: T.textWhite }}>Expected Settlement</span>
+                      <span style={{ fontWeight: 800, color: preview.net >= 0 ? "#95E77E" : "#FF6B6B" }}>{fm(preview.net, pf.currency || "PHP")}</span>
+                    </div>
+                    <div style={{ fontSize: 10, color: T.textSoft, marginTop: 4 }}>Margin: {g > 0 ? (preview.net / g * 100).toFixed(1) : 0}% · Total expenses: {fm(preview.totalExp, pf.currency || "PHP")}</div>
+                  </div>
+                );
+              })()}
+              <div style={G2}>
                 <div><span style={L}>Ship Date</span><input style={I} type="date" value={pf.date} onChange={e => setPf({ ...pf, date: e.target.value })} /></div>
                 <div><span style={L}>Expected Settlement</span><input style={I} type="date" value={pf.expectedDate} onChange={e => setPf({ ...pf, expectedDate: e.target.value })} /></div>
                 <div><span style={L}>Scope</span><ScopeSelect style={I} value={pf.scope} onChange={(v: string) => setPf({ ...pf, scope: v })} /></div>
@@ -1701,45 +1748,47 @@ Important: If you see multiple amounts, use the total/final amount. For bank tra
             </div>
           )}
           {sP.length === 0 ? <div style={{ color: "#333", textAlign: "center", padding: 30, fontSize: 13 }}>No pipeline entries</div> : sP.map((p: AnyState) => {
-            const expRev = p.grossValue * (p.deliveryRate / 100);
-            const expReturn = p.grossValue * ((100 - p.deliveryRate) / 100);
-            const totExp = (p.shippingCost || 0) + (p.codFees || 0) + (p.returnCost || 0) + (p.otherExpenses || 0);
-            const netProj = expRev - totExp;
+            const pc = calcPipe(p);
             const isSettled = p.status === "settled";
             const daysLeft = dTo(p.expectedDate);
             return (
-              <div key={p.id} style={{ background: "#12141A", borderRadius: 12, padding: "14px", marginBottom: 10, borderLeft: `3px solid ${isSettled ? "#555" : "#E9C46A"}`, opacity: isSettled ? 0.5 : 1 }}>
+              <div key={p.id} style={{ background: T.card, borderRadius: 12, padding: "14px", marginBottom: 10, borderLeft: `3px solid ${isSettled ? "#555" : "#E9C46A"}`, opacity: isSettled ? 0.5 : 1 }}>
                 <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 10 }}>
                   <div>
-                    <div style={{ fontSize: 15, fontWeight: 700, color: "#fff" }}>
+                    <div style={{ fontSize: 15, fontWeight: 700, color: T.textWhite }}>
                       {isSettled ? "✅" : "📦"} {p.name}
                       {isSettled && <span style={{ fontSize: 10, color: "#95E77E", marginLeft: 6 }}>SETTLED</span>}
                     </div>
-                    <div style={{ fontSize: 11, color: "#555", marginTop: 2 }}>{getBizShort(p.scope)} · {p.parcels ? `${fmtNum(String(p.parcels))} parcels · ` : ""}{p.date}{p.expectedDate ? ` → ${p.expectedDate}` : ""}</div>
+                    <div style={{ fontSize: 11, color: T.textSoft, marginTop: 2 }}>{getBizShort(p.scope)} · {p.date}{p.expectedDate ? ` → ${p.expectedDate}` : ""}</div>
                     {daysLeft !== null && !isSettled && <div style={{ fontSize: 11, color: daysLeft <= 0 ? "#FFD93D" : "#95E77E", fontWeight: 600, marginTop: 3 }}>{daysLeft <= 0 ? "Ready for settlement" : `${daysLeft}d to settlement`}</div>}
                   </div>
                   <div style={{ textAlign: "right" as const }}>
-                    <div style={{ fontSize: 10, color: "#555" }}>Net Projection</div>
-                    <div style={{ fontSize: 18, fontWeight: 700, color: netProj >= 0 ? "#95E77E" : "#FF6B6B" }}>{fm(netProj, p.currency)}</div>
+                    <div style={{ fontSize: 10, color: T.textSoft }}>Expected Settlement</div>
+                    <div style={{ fontSize: 18, fontWeight: 700, color: pc.net >= 0 ? "#95E77E" : "#FF6B6B" }}>{fm(pc.net, p.currency)}</div>
+                    <div style={{ fontSize: 10, color: T.textSoft }}>Margin: {p.grossValue > 0 ? (pc.net / p.grossValue * 100).toFixed(1) : 0}%</div>
                   </div>
                 </div>
-                <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr 1fr", gap: 6, marginBottom: 8 }}>
-                  <div style={{ background: "#0B0D12", borderRadius: 6, padding: "6px" }}><div style={{ fontSize: 9, color: "#555" }}>GROSS</div><div style={{ fontSize: 12, fontWeight: 700, color: "#E9C46A", marginTop: 2 }}>{fm(p.grossValue, p.currency)}</div></div>
-                  <div style={{ background: "#0B0D12", borderRadius: 6, padding: "6px" }}><div style={{ fontSize: 9, color: "#555" }}>EXP. REVENUE</div><div style={{ fontSize: 12, fontWeight: 700, color: "#95E77E", marginTop: 2 }}>{fm(expRev, p.currency)}</div><div style={{ fontSize: 9, color: "#444" }}>{p.deliveryRate}% delivery</div></div>
-                  <div style={{ background: "#0B0D12", borderRadius: 6, padding: "6px" }}><div style={{ fontSize: 9, color: "#555" }}>EXP. RETURNS</div><div style={{ fontSize: 12, fontWeight: 700, color: "#FF6B6B", marginTop: 2 }}>{fm(expReturn, p.currency)}</div><div style={{ fontSize: 9, color: "#444" }}>{100 - p.deliveryRate}% return</div></div>
+                <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "1fr 1fr 1fr", gap: 6, marginBottom: 8 }}>
+                  <div style={{ background: T.statBg, borderRadius: 6, padding: "6px" }}><div style={{ fontSize: 9, color: T.textSoft }}>GROSS</div><div style={{ fontSize: 12, fontWeight: 700, color: "#E9C46A", marginTop: 2 }}>{fm(p.grossValue, p.currency)}</div></div>
+                  <div style={{ background: T.statBg, borderRadius: 6, padding: "6px" }}><div style={{ fontSize: 9, color: T.textSoft }}>DELIVERED ({p.deliveryRate}%)</div><div style={{ fontSize: 12, fontWeight: 700, color: "#95E77E", marginTop: 2 }}>{fm(pc.delivered, p.currency)}</div></div>
+                  <div style={{ background: T.statBg, borderRadius: 6, padding: "6px" }}><div style={{ fontSize: 9, color: T.textSoft }}>TOTAL EXPENSES</div><div style={{ fontSize: 12, fontWeight: 700, color: "#FF6B6B", marginTop: 2 }}>{fm(pc.totalExp, p.currency)}</div></div>
                 </div>
-                {totExp > 0 && (
-                  <div style={{ background: "#0B0D12", borderRadius: 6, padding: "8px 10px", marginBottom: 8 }}>
-                    <div style={{ fontSize: 9, color: "#555", textTransform: "uppercase" as const, marginBottom: 4 }}>Expenses Breakdown</div>
-                    <div style={{ display: "flex", flexWrap: "wrap" as const, gap: 8, fontSize: 11 }}>
-                      {p.shippingCost > 0 && <span style={{ color: "#888" }}>Shipping: <span style={{ color: "#FF6B6B" }}>{fm(p.shippingCost, p.currency)}</span></span>}
-                      {p.codFees > 0 && <span style={{ color: "#888" }}>COD Fees: <span style={{ color: "#FF6B6B" }}>{fm(p.codFees, p.currency)}</span></span>}
-                      {p.returnCost > 0 && <span style={{ color: "#888" }}>Returns: <span style={{ color: "#FF6B6B" }}>{fm(p.returnCost, p.currency)}</span></span>}
-                      {p.otherExpenses > 0 && <span style={{ color: "#888" }}>Other: <span style={{ color: "#FF6B6B" }}>{fm(p.otherExpenses, p.currency)}</span></span>}
+                <div style={{ background: T.statBg, borderRadius: 6, padding: "8px 10px", marginBottom: 8 }}>
+                  <div style={{ fontSize: 9, color: T.textSoft, textTransform: "uppercase" as const, marginBottom: 4 }}>Expense Breakdown</div>
+                  {[
+                    ...(pc.shipping > 0 ? [["Shipping", pc.shipping, `${p.shippingPct}%`]] : []),
+                    ...(pc.cod > 0 ? [["COD Fees", pc.cod, `${p.codPct}%`]] : []),
+                    ...(pc.cogs > 0 ? [["COGS", pc.cogs, `${p.cogsPct}%`]] : []),
+                    ...(pc.salaries > 0 ? [["Salaries & OpEx", pc.salaries, `${p.salariesPct}%`]] : []),
+                    ...(pc.other > 0 ? [["Other", pc.other, `${p.otherPct}%`]] : []),
+                    ...(pc.adSpend > 0 ? [["Ad Spend", pc.adSpend, `ROAS ${p.adsRoas}`]] : []),
+                  ].map(([label, val, pct], i) => (
+                    <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "2px 0", fontSize: 11 }}>
+                      <span style={{ color: T.textSoft }}>{label as string} <span style={{ color: T.textMuted }}>({pct as string})</span></span>
+                      <span style={{ color: "#FF6B6B", fontWeight: 600 }}>{fm(val as number, p.currency)}</span>
                     </div>
-                    <div style={{ fontSize: 12, fontWeight: 700, color: "#FF6B6B", marginTop: 4 }}>Total: {fm(totExp, p.currency)}</div>
-                  </div>
-                )}
+                  ))}
+                </div>
                 {!isSettled && (
                   <div style={{ background: "#0B0D12", borderRadius: 6, padding: "8px 10px", marginBottom: 8 }}>
                     <div style={{ fontSize: 9, color: "#E9C46A", textTransform: "uppercase" as const, marginBottom: 6 }}>Actual Results (update as they come in)</div>
@@ -1751,7 +1800,7 @@ Important: If you see multiple amounts, use the total/final amount. For bank tra
                     {(p.actualReceived > 0 || p.actualReturned > 0) && (
                       <div style={{ display: "flex", justifyContent: "space-between", marginTop: 6, fontSize: 11 }}>
                         <span style={{ color: "#555" }}>Actual Net: <span style={{ color: "#95E77E", fontWeight: 700 }}>{fm((p.actualReceived || 0) - (p.actualExpenses || 0), p.currency)}</span></span>
-                        <span style={{ color: "#555" }}>vs Projected: <span style={{ color: "#E9C46A" }}>{fm(netProj, p.currency)}</span></span>
+                        <span style={{ color: "#555" }}>vs Projected: <span style={{ color: "#E9C46A" }}>{fm(pc.net, p.currency)}</span></span>
                       </div>
                     )}
                   </div>
@@ -1759,7 +1808,7 @@ Important: If you see multiple amounts, use the total/final amount. For bank tra
                 {p.notes && <div style={{ fontSize: 11, color: "#444", marginBottom: 6 }}>{p.notes}</div>}
                 <div style={{ display: "flex", gap: 12, marginTop: 6 }}>
                   {!isSettled && <button onClick={() => { settlePipeline(p.id); }} style={{ background: "#E9C46A", border: "none", color: "#0B0D12", padding: "5px 12px", borderRadius: 6, cursor: "pointer", fontSize: 11, fontWeight: 600 }}>✓ Settle</button>}
-                  <button onClick={() => { setEId(p.id); setSf("pipe"); setPf({ name: p.name, grossValue: String(p.grossValue), deliveryRate: String(p.deliveryRate), shippingCost: String(p.shippingCost || 0), codFees: String(p.codFees || 0), returnCost: String(p.returnCost || 0), otherExpenses: String(p.otherExpenses || 0), parcels: String(p.parcels || 0), date: p.date || "", expectedDate: p.expectedDate || "", scope: p.scope, currency: p.currency, notes: p.notes || "", status: p.status }); }} style={{ background: "none", border: "none", color: "#555", cursor: "pointer", fontSize: 11 }}>Edit</button>
+                  <button onClick={() => { setEId(p.id); setSf("pipe"); setPf({ name: p.name, grossValue: String(p.grossValue), deliveryRate: String(p.deliveryRate || 75), shippingPct: String(p.shippingPct || 0), codPct: String(p.codPct || 0), salariesPct: String(p.salariesPct || 0), otherPct: String(p.otherPct || 0), cogsPct: String(p.cogsPct || 0), adsRoas: String(p.adsRoas || 0), date: p.date || "", expectedDate: p.expectedDate || "", scope: p.scope, currency: p.currency, notes: p.notes || "", status: p.status }); }} style={{ background: "none", border: "none", color: "#555", cursor: "pointer", fontSize: 11 }}>Edit</button>
                   <button onClick={() => { if (prompt('Type DELETE to confirm')?.trim().toUpperCase() !== 'DELETE') return; delPipeline(p.id); }} style={{ background: "none", border: "none", color: "#FF6B6B", cursor: "pointer", fontSize: 11 }}>Delete</button>
                 </div>
               </div>
