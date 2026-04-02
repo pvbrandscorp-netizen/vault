@@ -2464,8 +2464,8 @@ Important: If you see multiple amounts, use the total/final amount. For bank tra
                     <span style={{ fontWeight: 600, fontSize: 12, color: clr as string }}>{(val as number) < 0 ? "-" : ""}{fm(Math.abs(val as number), dCur)}</span>
                   </div>
                 ))}
-                <div style={{ display: "flex", justifyContent: "space-between", paddingTop: 8, marginTop: 4 }}>
-                  <span style={{ fontWeight: 800, fontSize: 14, color: T.textWhite }}>Net Cash</span>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingTop: 8, marginTop: 4 }}>
+                  <span style={{ fontWeight: 800, fontSize: 14, color: T.textWhite }}>Net Cash <span style={{ fontSize: 11, fontWeight: 600, color: results.totalGross > 0 ? (results.netCash >= 0 ? "#95E77E" : "#FF6B6B") : T.textSoft }}>{results.totalGross > 0 ? `(${(results.netCash / results.totalGross * 100).toFixed(1)}%)` : ""}</span></span>
                   <span style={{ fontWeight: 800, fontSize: 14, color: results.netCash >= 0 ? "#95E77E" : "#FF6B6B" }}>{fm(results.netCash, dCur)}</span>
                 </div>
 
