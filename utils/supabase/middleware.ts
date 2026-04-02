@@ -25,21 +25,43 @@ export async function updateSession(request: NextRequest) {
     }
   );
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
   const path = request.nextUrl.pathname;
 
-  if (!user && path !== "/login" && !path.startsWith("/auth/")) {
-    const url = request.nextUrl.clone();
-    url.pathname = "/login";
-    return NextResponse.redirect(url);
+  // Skip auth check for API routes, login page, and auth callback
+  if (path.startsWith("/api/")) {
+    return supabaseResponse;
   }
 
-  if (user && path === "/login") {
+  if (path === "/login" || path.startsWith("/auth/")) {
+    // Still refresh session if cookies exist
+    const hasAuthCookie = request.cookies.getAll().some(c => c.name.startsWith("sb-"));
+    if (hasAuthCookie) {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user && path === "/login") {
+          const url = request.nextUrl.clone();
+          url.pathname = "/dashboard";
+          return NextResponse.redirect(url);
+        }
+      } catch {
+        // Auth check failed, let them stay on login
+      }
+    }
+    return supabaseResponse;
+  }
+
+  // For protected routes, check auth
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      const url = request.nextUrl.clone();
+      url.pathname = "/login";
+      return NextResponse.redirect(url);
+    }
+  } catch {
+    // If auth check fails, redirect to login
     const url = request.nextUrl.clone();
-    url.pathname = "/dashboard";
+    url.pathname = "/login";
     return NextResponse.redirect(url);
   }
 
