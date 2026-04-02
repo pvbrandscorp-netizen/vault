@@ -109,6 +109,10 @@ export default function Vault() {
   const [mobileNav, setMobileNav] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileSettings, setMobileSettings] = useState(false);
+  const [calcMode, setCalcMode] = useState<"sales2cash" | "cash2sales">("sales2cash");
+  const [calcDaily, setCalcDaily] = useState("");
+  const [calcDate, setCalcDate] = useState("");
+  const [calcTarget, setCalcTarget] = useState("");
   const [isMobile, setIsMobile] = useState(false);
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth < 768);
@@ -863,6 +867,7 @@ Important: If you see multiple amounts, use the total/final amount. For bank tra
             ["pipe", "📦", "Pipeline"],
             ["pnl", "💹", "P&L Import"],
             ["report", "📊", "Reports"],
+            ["calc", "🧮", "Cash Flow Calc"],
             ["scan", "📸", "Smart Scan"],
             ["tx", "📝", "Activity"],
           ].map(([k, icon, label]) => (
@@ -2294,6 +2299,167 @@ Important: If you see multiple amounts, use the total/final amount. For bank tra
                 </div>
               </div>
             )}
+          </div>
+          );
+        })()}
+
+        {/* ═══ CASH FLOW CALCULATOR ═══ */}
+        {view === "calc" && (() => {
+          const today = new Date();
+          const todayStr = today.toISOString().slice(0, 10);
+          const targetDate = calcDate || todayStr;
+          const daysLeft = Math.max(1, Math.ceil((new Date(targetDate).getTime() - today.getTime()) / 864e5));
+
+          // Use pipeline presets for expense calculation
+          const shipPct = parseFloat(PIPE_PRESETS.shippingPct) || 0;
+          const codPct = parseFloat(PIPE_PRESETS.codPct) || 0;
+          const delRate = parseFloat(PIPE_PRESETS.deliveryRate) || 75;
+          const salPct = parseFloat(PIPE_PRESETS.salariesPct) || 0;
+          const othPct = parseFloat(PIPE_PRESETS.otherPct) || 0;
+          const cogPct = parseFloat(PIPE_PRESETS.cogsPct) || 0;
+          const roas = parseFloat(PIPE_PRESETS.adsRoas) || 4;
+          const totalExpPct = shipPct + codPct + salPct + othPct + cogPct;
+          const adsPctEq = roas > 0 ? (1 / roas) * 100 : 0;
+          const netMarginPct = delRate - totalExpPct - adsPctEq;
+
+          let results: AnyState = null;
+
+          if (calcMode === "sales2cash") {
+            const daily = parseN(calcDaily);
+            if (daily > 0) {
+              const totalGross = daily * daysLeft;
+              const delivered = totalGross * (delRate / 100);
+              const totalExp = totalGross * (totalExpPct / 100);
+              const adSpend = roas > 0 ? totalGross / roas : 0;
+              const netCash = delivered - totalExp - adSpend;
+              results = { daily, daysLeft, totalGross, delivered, totalExp, adSpend, netCash };
+            }
+          } else {
+            const target = parseN(calcTarget);
+            if (target > 0 && netMarginPct > 0) {
+              const totalGross = target / (netMarginPct / 100);
+              const daily = totalGross / daysLeft;
+              const delivered = totalGross * (delRate / 100);
+              const totalExp = totalGross * (totalExpPct / 100);
+              const adSpend = roas > 0 ? totalGross / roas : 0;
+              results = { daily, daysLeft, totalGross, delivered, totalExp, adSpend, netCash: target };
+            }
+          }
+
+          return (
+          <div>
+            <div style={Sec}>🧮 Cash Flow Calculator</div>
+            <div style={{ fontSize: 12, color: T.textSoft, marginBottom: 14, marginTop: -6 }}>Project cash flow from daily sales or reverse-calculate sales needed to hit a target.</div>
+
+            {/* Mode toggle */}
+            <div style={{ display: "flex", gap: 4, marginBottom: 14, background: T.statBg, borderRadius: 8, padding: 3 }}>
+              <button onClick={() => setCalcMode("sales2cash")} style={{ flex: 1, padding: "10px", borderRadius: 6, border: "none", cursor: "pointer", fontSize: 12, fontWeight: 600, background: calcMode === "sales2cash" ? "#4ECDC4" : "transparent", color: calcMode === "sales2cash" ? "#0B0D12" : T.textSoft }}>
+                📈 Daily Sales → Cash
+              </button>
+              <button onClick={() => setCalcMode("cash2sales")} style={{ flex: 1, padding: "10px", borderRadius: 6, border: "none", cursor: "pointer", fontSize: 12, fontWeight: 600, background: calcMode === "cash2sales" ? "#E9C46A" : "transparent", color: calcMode === "cash2sales" ? "#0B0D12" : T.textSoft }}>
+                🎯 Target Cash → Daily Sales
+              </button>
+            </div>
+
+            {/* Inputs */}
+            <div style={FmS}>
+              {calcMode === "sales2cash" ? (
+                <div style={G2}>
+                  <div><span style={L}>Daily Gross Sales</span><NumIn style={I} value={calcDaily} onChange={(v: string) => setCalcDaily(v)} placeholder="50,000" /></div>
+                  <div><span style={L}>Target Date</span><input style={I} type="date" value={calcDate} onChange={e => setCalcDate(e.target.value)} min={todayStr} /></div>
+                </div>
+              ) : (
+                <div style={G2}>
+                  <div><span style={L}>Target Cash Needed</span><NumIn style={I} value={calcTarget} onChange={(v: string) => setCalcTarget(v)} placeholder="500,000" /></div>
+                  <div><span style={L}>By Date</span><input style={I} type="date" value={calcDate} onChange={e => setCalcDate(e.target.value)} min={todayStr} /></div>
+                </div>
+              )}
+              <div style={{ fontSize: 11, color: T.textSoft, marginTop: 4 }}>
+                {daysLeft} day{daysLeft !== 1 ? "s" : ""} from today · Using pipeline presets (margin {netMarginPct.toFixed(1)}%)
+              </div>
+            </div>
+
+            {/* Results */}
+            {results && (
+              <div style={{ background: T.card, borderRadius: 12, padding: 16, border: `1px solid ${T.cardBorder}` }}>
+                {calcMode === "cash2sales" && (
+                  <div style={{ textAlign: "center" as const, marginBottom: 16, padding: 16, background: "#E9C46A11", borderRadius: 10, border: "1px solid #E9C46A33" }}>
+                    <div style={{ fontSize: 11, color: "#E9C46A", textTransform: "uppercase" as const, letterSpacing: 1, marginBottom: 4 }}>Daily Sales Needed</div>
+                    <div style={{ fontSize: 28, fontWeight: 800, color: "#E9C46A" }}>{fm(results.daily, dCur)}</div>
+                    <div style={{ fontSize: 11, color: T.textSoft, marginTop: 4 }}>{fm(results.daily, dCur)} × {results.daysLeft} days = {fm(results.totalGross, dCur)} gross</div>
+                  </div>
+                )}
+
+                {calcMode === "sales2cash" && (
+                  <div style={{ textAlign: "center" as const, marginBottom: 16, padding: 16, background: "#4ECDC411", borderRadius: 10, border: "1px solid #4ECDC433" }}>
+                    <div style={{ fontSize: 11, color: "#4ECDC4", textTransform: "uppercase" as const, letterSpacing: 1, marginBottom: 4 }}>Expected Cash by {targetDate}</div>
+                    <div style={{ fontSize: 28, fontWeight: 800, color: "#95E77E" }}>{fm(results.netCash, dCur)}</div>
+                    <div style={{ fontSize: 11, color: T.textSoft, marginTop: 4 }}>{fm(results.daily, dCur)}/day × {results.daysLeft} days</div>
+                  </div>
+                )}
+
+                {/* Breakdown */}
+                <div style={{ fontSize: 11, fontWeight: 700, color: T.textSoft, textTransform: "uppercase" as const, letterSpacing: 1, marginBottom: 8 }}>Projection Breakdown</div>
+                {[
+                  ["Total Gross Sales", results.totalGross, "#E9C46A"],
+                  [`Delivered Revenue (${delRate}%)`, results.delivered, "#95E77E"],
+                  [`Shipping (${shipPct}%)`, -results.totalGross * shipPct / 100, "#FF6B6B"],
+                  [`COD Fees (${codPct}%)`, -results.totalGross * codPct / 100, "#FF6B6B"],
+                  [`COGS (${cogPct}%)`, -results.totalGross * cogPct / 100, "#FF6B6B"],
+                  [`Salaries & OpEx (${salPct}%)`, -results.totalGross * salPct / 100, "#FF6B6B"],
+                  [`Other (${othPct}%)`, -results.totalGross * othPct / 100, "#FF6B6B"],
+                  [`Ad Spend (ROAS ${roas})`, -results.adSpend, "#FF6B6B"],
+                ].filter(([, v]) => v !== 0).map(([label, val, clr], i) => (
+                  <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "4px 0", borderBottom: `1px solid ${T.divider}` }}>
+                    <span style={{ color: T.text, fontSize: 12 }}>{label as string}</span>
+                    <span style={{ fontWeight: 600, fontSize: 12, color: clr as string }}>{(val as number) < 0 ? "-" : ""}{fm(Math.abs(val as number), dCur)}</span>
+                  </div>
+                ))}
+                <div style={{ display: "flex", justifyContent: "space-between", paddingTop: 8, marginTop: 4 }}>
+                  <span style={{ fontWeight: 800, fontSize: 14, color: T.textWhite }}>Net Cash</span>
+                  <span style={{ fontWeight: 800, fontSize: 14, color: results.netCash >= 0 ? "#95E77E" : "#FF6B6B" }}>{fm(results.netCash, dCur)}</span>
+                </div>
+
+                {/* Weekly milestones */}
+                <div style={{ marginTop: 16, fontSize: 11, fontWeight: 700, color: T.textSoft, textTransform: "uppercase" as const, letterSpacing: 1, marginBottom: 8 }}>Daily / Weekly Milestones</div>
+                <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "1fr 1fr 1fr 1fr", gap: 6 }}>
+                  {[
+                    ["Daily Net", results.netCash / results.daysLeft],
+                    ["Weekly Net", (results.netCash / results.daysLeft) * 7],
+                    ["Daily Gross", results.daily],
+                    ["Weekly Gross", results.daily * 7],
+                  ].map(([label, val], i) => (
+                    <div key={i} style={{ background: T.statBg, borderRadius: 6, padding: "8px" }}>
+                      <div style={{ fontSize: 9, color: T.textSoft, textTransform: "uppercase" as const }}>{label as string}</div>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: T.textWhite, marginTop: 2 }}>{fm(val as number, dCur, true)}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {!results && (parseN(calcDaily) > 0 || parseN(calcTarget) > 0) && (
+              <div style={{ color: T.textSoft, textAlign: "center", padding: 20, fontSize: 12 }}>
+                {calcMode === "cash2sales" && netMarginPct <= 0 ? "Net margin is 0% or negative — adjust pipeline presets" : "Enter values above to see projections"}
+              </div>
+            )}
+
+            {/* Presets reference */}
+            <div style={{ ...FmS, marginTop: 14 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: T.textSoft, marginBottom: 8 }}>📋 Using Pipeline Presets</div>
+              <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "1fr 1fr 1fr 1fr", gap: 6 }}>
+                {[
+                  ["Delivery", `${delRate}%`], ["Shipping", `${shipPct}%`], ["COD", `${codPct}%`], ["COGS", `${cogPct}%`],
+                  ["Salaries", `${salPct}%`], ["Other", `${othPct}%`], ["Ads ROAS", `${roas}x`], ["Net Margin", `${netMarginPct.toFixed(1)}%`],
+                ].map(([label, val], i) => (
+                  <div key={i} style={{ display: "flex", justifyContent: "space-between", fontSize: 11, padding: "4px 0" }}>
+                    <span style={{ color: T.textSoft }}>{label}</span>
+                    <span style={{ color: T.textWhite, fontWeight: 600 }}>{val}</span>
+                  </div>
+                ))}
+              </div>
+              <div style={{ fontSize: 10, color: T.textMuted, marginTop: 6 }}>Edit these in Pipeline → Add → preset fields</div>
+            </div>
           </div>
           );
         })()}
