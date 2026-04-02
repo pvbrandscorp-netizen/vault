@@ -107,6 +107,7 @@ export default function Vault() {
   const [darkMode, setDarkMode] = useState(true);
   const [hideBalances, setHideBalances] = useState(false);
   const [mobileNav, setMobileNav] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth < 768);
@@ -821,21 +822,35 @@ Important: If you see multiple amounts, use the total/final amount. For bank tra
 
       {/* ── SIDEBAR ── */}
       <div style={{
-        width: 220, minWidth: 220, background: T.sidebar, borderRight: `1px solid ${T.sidebarBorder}`,
-        display: "flex", flexDirection: "column", height: "100vh", overflowY: "auto",
-        ...(isMobile ? { position: "fixed", top: 0, left: 0, zIndex: 999, transform: mobileNav ? "translateX(0)" : "translateX(-100%)", transition: "transform .25s ease" } : { position: "sticky" as const, top: 0 })
+        ...(isMobile
+          ? { width: 260, minWidth: 260, position: "fixed" as const, top: 0, left: 0, zIndex: 999, transform: mobileNav ? "translateX(0)" : "translateX(-100%)", transition: "transform .25s ease", paddingBottom: 80 }
+          : { width: sidebarCollapsed ? 60 : 220, minWidth: sidebarCollapsed ? 60 : 220, position: "sticky" as const, top: 0, transition: "width .2s, min-width .2s" }
+        ),
+        background: T.sidebar, borderRight: `1px solid ${T.sidebarBorder}`,
+        display: "flex", flexDirection: "column", height: "100vh", overflowY: "auto"
       }}>
-        {/* Logo */}
-        <div style={{ padding: "20px 16px 12px" }}>
-          <div style={{ fontSize: 20, fontWeight: 800, color: T.textWhite, letterSpacing: 4 }}>VAULT</div>
-          <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 3 }}>
-            <span style={{ fontSize: 9, color: T.textSoft, letterSpacing: 2 }}>FINANCE</span>
-            <span style={{ fontSize: 8, color: rStat === "live" ? "#95E77E" : "#FFD93D", background: T.statBg, padding: "1px 5px", borderRadius: 4 }}>{rStat === "live" ? "● LIVE" : "◌ CACHED"}</span>
-          </div>
+        {/* Logo + Close/Collapse */}
+        <div style={{ padding: sidebarCollapsed && !isMobile ? "16px 8px 8px" : "20px 16px 12px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          {sidebarCollapsed && !isMobile ? (
+            <button onClick={() => setSidebarCollapsed(false)} style={{ background: "none", border: "none", color: T.textWhite, fontSize: 18, cursor: "pointer", padding: 4, width: "100%", textAlign: "center" as const }}>☰</button>
+          ) : (<>
+            <div>
+              <div style={{ fontSize: 20, fontWeight: 800, color: T.textWhite, letterSpacing: 4 }}>VAULT</div>
+              <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 3 }}>
+                <span style={{ fontSize: 9, color: T.textSoft, letterSpacing: 2 }}>FINANCE</span>
+                <span style={{ fontSize: 8, color: rStat === "live" ? "#95E77E" : "#FFD93D", background: T.statBg, padding: "1px 5px", borderRadius: 4 }}>{rStat === "live" ? "● LIVE" : "◌ CACHED"}</span>
+              </div>
+            </div>
+            {isMobile ? (
+              <button onClick={() => setMobileNav(false)} style={{ background: "none", border: "none", color: T.textSoft, fontSize: 20, cursor: "pointer", padding: 4 }}>✕</button>
+            ) : (
+              <button onClick={() => setSidebarCollapsed(true)} style={{ background: "none", border: "none", color: T.textSoft, fontSize: 14, cursor: "pointer", padding: 4 }} title="Collapse sidebar">◀</button>
+            )}
+          </>)}
         </div>
 
         {/* Nav */}
-        <div style={{ flex: 1, padding: "4px 8px" }}>
+        <div style={{ flex: 1, padding: sidebarCollapsed && !isMobile ? "4px 4px" : "4px 8px" }}>
           {[
             ["dash", "📊", "Overview"],
             ["ask", "💬", "Ask Vault"],
@@ -851,25 +866,34 @@ Important: If you see multiple amounts, use the total/final amount. For bank tra
             ["tx", "📝", "Activity"],
           ].map(([k, icon, label]) => (
             <button key={k} onClick={() => { setView(k); setSf(null); setEId(null); setMobileNav(false); }}
-              style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", padding: "10px 12px", marginBottom: 2, background: view === k ? T.navActive : T.navInactive, border: "none", borderRadius: 8, color: view === k ? T.navActiveText : T.navText, cursor: "pointer", fontSize: 13, fontWeight: view === k ? 600 : 400, textAlign: "left" as const, borderLeft: view === k ? "3px solid #4ECDC4" : "3px solid transparent" }}>
-              <span style={{ fontSize: 16 }}>{icon}</span> {label}
+              title={sidebarCollapsed ? label : undefined}
+              style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", padding: sidebarCollapsed && !isMobile ? "10px 0" : "10px 12px", marginBottom: 2, background: view === k ? T.navActive : T.navInactive, border: "none", borderRadius: 8, color: view === k ? T.navActiveText : T.navText, cursor: "pointer", fontSize: sidebarCollapsed && !isMobile ? 18 : 13, fontWeight: view === k ? 600 : 400, textAlign: "center" as const, borderLeft: view === k ? "3px solid #4ECDC4" : "3px solid transparent", justifyContent: sidebarCollapsed && !isMobile ? "center" : "flex-start" }}>
+              <span style={{ fontSize: sidebarCollapsed && !isMobile ? 18 : 16 }}>{icon}</span> {sidebarCollapsed && !isMobile ? "" : label}
             </button>
           ))}
         </div>
 
-        {/* Scope + Settings */}
-        <div style={{ padding: "12px 12px 16px", borderTop: `1px solid ${T.sidebarBorder}` }}>
-          <div style={{ fontSize: 9, color: T.textSoft, textTransform: "uppercase" as const, letterSpacing: 1, marginBottom: 6 }}>Currency</div>
-          <select value={dCur} onChange={e => setDCur(e.target.value)} style={{ background: T.input, border: `1px solid ${T.inputBorder}`, color: "#4ECDC4", padding: "6px 8px", borderRadius: 6, fontSize: 13, outline: "none", fontWeight: 700, width: "100%", marginBottom: 8 }}>{ALL_CUR.map(c => <option key={c}>{c}</option>)}</select>
-          <button onClick={() => setDarkMode(!darkMode)} style={{ width: "100%", background: "none", border: `1px solid ${T.inputBorder}`, color: T.navText, padding: "5px", borderRadius: 6, cursor: "pointer", fontSize: 10, marginBottom: 4 }}>{dk ? "☀️ Light Mode" : "🌙 Dark Mode"}</button>
-          <button onClick={() => setShowRates(!showRates)} style={{ width: "100%", background: "none", border: `1px solid ${T.inputBorder}`, color: T.navText, padding: "5px", borderRadius: 6, cursor: "pointer", fontSize: 10, marginBottom: 4 }}>💱 Rates</button>
-          <button onClick={() => {
-            const answer = prompt('Type RESET to erase all data. This cannot be undone.');
-            if (answer?.trim().toUpperCase() !== 'RESET') return;
-            setAccounts([]); setDebts([]); setReceivables([]); setCryptos([]); setTxns([]); setPipelines([]); setAssets([]); setInventory([]); setPnlBatches([]); setSnaps([]); save();
-          }} style={{ width: "100%", background: "none", border: "1px solid #FF6B6B33", color: "#FF6B6B", padding: "5px 8px", borderRadius: 6, cursor: "pointer", fontSize: 10 }}>Reset Data</button>
-          <button onClick={handleLogout} style={{ width: "100%", marginTop: 8, background: "none", border: `1px solid ${T.inputBorder}`, color: "#FF6B6B", padding: "6px", borderRadius: 6, cursor: "pointer", fontSize: 11, fontWeight: 600 }}>Logout</button>
-        </div>
+        {/* Settings — scrollable on mobile */}
+        {!(sidebarCollapsed && !isMobile) && (
+          <div style={{ padding: "12px 12px 16px", borderTop: `1px solid ${T.sidebarBorder}`, flexShrink: 0 }}>
+            <div style={{ fontSize: 9, color: T.textSoft, textTransform: "uppercase" as const, letterSpacing: 1, marginBottom: 6 }}>Currency</div>
+            <select value={dCur} onChange={e => setDCur(e.target.value)} style={{ background: T.input, border: `1px solid ${T.inputBorder}`, color: "#4ECDC4", padding: "6px 8px", borderRadius: 6, fontSize: 13, outline: "none", fontWeight: 700, width: "100%", marginBottom: 8 }}>{ALL_CUR.map(c => <option key={c}>{c}</option>)}</select>
+            <button onClick={() => setDarkMode(!darkMode)} style={{ width: "100%", background: "none", border: `1px solid ${T.inputBorder}`, color: T.navText, padding: "5px", borderRadius: 6, cursor: "pointer", fontSize: 10, marginBottom: 4 }}>{dk ? "☀️ Light Mode" : "🌙 Dark Mode"}</button>
+            <button onClick={() => setShowRates(!showRates)} style={{ width: "100%", background: "none", border: `1px solid ${T.inputBorder}`, color: T.navText, padding: "5px", borderRadius: 6, cursor: "pointer", fontSize: 10, marginBottom: 4 }}>💱 Rates</button>
+            <button onClick={() => {
+              const answer = prompt('Type RESET to erase all data. This cannot be undone.');
+              if (answer?.trim().toUpperCase() !== 'RESET') return;
+              setAccounts([]); setDebts([]); setReceivables([]); setCryptos([]); setTxns([]); setPipelines([]); setAssets([]); setInventory([]); setPnlBatches([]); setSnaps([]); save();
+            }} style={{ width: "100%", background: "none", border: "1px solid #FF6B6B33", color: "#FF6B6B", padding: "5px 8px", borderRadius: 6, cursor: "pointer", fontSize: 10 }}>Reset Data</button>
+            <button onClick={handleLogout} style={{ width: "100%", marginTop: 8, background: "none", border: `1px solid ${T.inputBorder}`, color: "#FF6B6B", padding: "6px", borderRadius: 6, cursor: "pointer", fontSize: 11, fontWeight: 600 }}>Logout</button>
+          </div>
+        )}
+        {sidebarCollapsed && !isMobile && (
+          <div style={{ padding: "8px 4px 16px", borderTop: `1px solid ${T.sidebarBorder}`, display: "flex", flexDirection: "column" as const, alignItems: "center", gap: 6 }}>
+            <button onClick={() => setDarkMode(!darkMode)} style={{ background: "none", border: "none", color: T.navText, cursor: "pointer", fontSize: 16 }} title={dk ? "Light Mode" : "Dark Mode"}>{dk ? "☀️" : "🌙"}</button>
+            <button onClick={handleLogout} style={{ background: "none", border: "none", color: "#FF6B6B", cursor: "pointer", fontSize: 12 }} title="Logout">🚪</button>
+          </div>
+        )}
       </div>
 
       {/* ── MAIN CONTENT ── */}
