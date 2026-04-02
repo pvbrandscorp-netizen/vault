@@ -148,6 +148,7 @@ export default function Vault() {
   const [rptSections, setRptSections] = useState<Record<string, boolean>>({ summary: true, pnl: true, expenses: true, income: true, topExpenses: true, debts: true, receivables: true, assets: true, pipeline: true });
   const [rptFrom, setRptFrom] = useState("");
   const [rptTo, setRptTo] = useState("");
+  const [rptTab, setRptTab] = useState("income");
 
   // Refs to avoid stale closures in snap/save
   const accountsRef = useRef(accounts);
@@ -1214,7 +1215,7 @@ Important: If you see multiple amounts, use the total/final amount. For bank tra
                   <div><div style={{ fontSize: 15, fontWeight: 700, color: "#fff" }}>{c?.i} {a.name}</div><div style={{ fontSize: 10, color: "#555", marginTop: 2 }}>{getBizShort(a.scope)} · {a.currency}</div></div>
                   <div style={{ textAlign: "right" as const }}><div style={{ fontSize: 20, fontWeight: 700, color: a.balance < 0 ? "#FF6B6B" : "#fff" }}>{fm(a.balance, a.currency)}</div>{a.currency !== dCur && <div style={{ fontSize: 11, color: "#555" }}>≈ {fm(cv(a.balance, a.currency, dCur, rates), dCur, true)}</div>}</div>
                 </div>
-                <div style={{ display: "flex", gap: 12, marginTop: 8 }}><button onClick={() => { setEId(a.id); setSf("acc"); setAf({ name: a.name, category: a.category, scope: a.scope, balance: String(a.balance), currency: a.currency, notes: a.notes || "" }); }} style={{ background: "none", border: "none", color: "#555", cursor: "pointer", fontSize: 11 }}>Edit</button><button onClick={() => { delAcc(a.id); }} style={{ background: "none", border: "none", color: "#FF6B6B", cursor: "pointer", fontSize: 11 }}>Delete</button></div>
+                <div style={{ display: "flex", gap: 12, marginTop: 8 }}><button onClick={() => { setEId(a.id); setSf("acc"); setAf({ name: a.name, category: a.category, scope: a.scope, balance: String(a.balance), currency: a.currency, notes: a.notes || "" }); }} style={{ background: "none", border: "none", color: "#555", cursor: "pointer", fontSize: 11 }}>Edit</button><button onClick={() => { if (prompt('Type DELETE to confirm')?.trim().toUpperCase() !== 'DELETE') return; delAcc(a.id); }} style={{ background: "none", border: "none", color: "#FF6B6B", cursor: "pointer", fontSize: 11 }}>Delete</button></div>
               </div>
             ); })})()}
         </div>)}
@@ -1232,7 +1233,7 @@ Important: If you see multiple amounts, use the total/final amount. For bank tra
           {sC.length === 0 ? <div style={{ color: "#333", textAlign: "center", padding: 30, fontSize: 13 }}>No holdings</div> : sC.map((c: AnyState) => { const cr = CRYPTO_DEF[c.coin]; const v = (c.amount * (rates[c.coin] || 0)) / (rates[dCur] || 1); return (
             <div key={c.id} style={{ ...Cd(cr?.c || "#555"), marginBottom: 8 }}>
               <div style={{ display: "flex", justifyContent: "space-between" }}><div><div style={{ fontSize: 16, fontWeight: 700, color: cr?.c }}>{cr?.i} {c.coin}</div><div style={{ fontSize: 11, color: "#555" }}>{getBizShort(c.scope)}{c.wallet ? ` · ${c.wallet}` : ""}</div></div><div style={{ textAlign: "right" as const }}><div style={{ fontSize: 18, fontWeight: 700 }}>{c.amount} {c.coin}</div><div style={{ fontSize: 13, color: cr?.c, fontWeight: 600 }}>≈ {fm(v, dCur, true)}</div></div></div>
-              <div style={{ display: "flex", gap: 8, marginTop: 10, alignItems: "flex-end" }}><div style={{ flex: 1 }}><span style={{ fontSize: 9, color: "#555" }}>Update amount</span><input style={{ ...I, padding: "7px 8px", fontSize: 12, marginTop: 2 }} type="number" step="any" placeholder={String(c.amount)} onBlur={e => { if (e.target.value) { editCrAmt(c.id, e.target.value); e.target.value = ""; } }} /></div><button onClick={() => { delCrypto(c.id); }} style={{ background: "none", border: "1px solid #2a2d35", color: "#FF6B6B", padding: "7px 12px", borderRadius: 8, cursor: "pointer", fontSize: 11 }}>Del</button></div>
+              <div style={{ display: "flex", gap: 8, marginTop: 10, alignItems: "flex-end" }}><div style={{ flex: 1 }}><span style={{ fontSize: 9, color: "#555" }}>Update amount</span><input style={{ ...I, padding: "7px 8px", fontSize: 12, marginTop: 2 }} type="number" step="any" placeholder={String(c.amount)} onBlur={e => { if (e.target.value) { editCrAmt(c.id, e.target.value); e.target.value = ""; } }} /></div><button onClick={() => { if (prompt('Type DELETE to confirm')?.trim().toUpperCase() !== 'DELETE') return; delCrypto(c.id); }} style={{ background: "none", border: "1px solid #2a2d35", color: "#FF6B6B", padding: "7px 12px", borderRadius: 8, cursor: "pointer", fontSize: 11 }}>Del</button></div>
             </div>
           ); })}
         </div>)}
@@ -1310,7 +1311,7 @@ Important: If you see multiple amounts, use the total/final amount. For bank tra
                   {a.notes && <div style={{ fontSize: 11, color: "#444", marginBottom: 4 }}>{a.notes}</div>}
                   <div style={{ display: "flex", gap: 12, marginTop: 4 }}>
                     <button onClick={() => { setEId(a.id); setSf("asset"); setAxf({ name: a.name, category: a.category, purchasePrice: String(a.purchasePrice), purchaseDate: a.purchaseDate || "", usefulLife: String(a.usefulLife), salvageValue: String(a.salvageValue || 0), marketValue: String(a.marketValue || ""), appreciationRate: String(a.appreciationRate || 5), scope: a.scope, currency: a.currency, notes: a.notes || "" }); }} style={{ background: "none", border: "none", color: "#555", cursor: "pointer", fontSize: 11 }}>Edit</button>
-                    <button onClick={() => { delAsset(a.id); }} style={{ background: "none", border: "none", color: "#FF6B6B", cursor: "pointer", fontSize: 11 }}>Delete</button>
+                    <button onClick={() => { if (prompt('Type DELETE to confirm')?.trim().toUpperCase() !== 'DELETE') return; delAsset(a.id); }} style={{ background: "none", border: "none", color: "#FF6B6B", cursor: "pointer", fontSize: 11 }}>Delete</button>
                   </div>
                 </div>
               );
@@ -1358,7 +1359,7 @@ Important: If you see multiple amounts, use the total/final amount. For bank tra
                   {i.notes && <div style={{ fontSize: 11, color: "#444", marginTop: 4 }}>{i.notes}</div>}
                   <div style={{ display: "flex", gap: 12, marginTop: 6 }}>
                     <button onClick={() => { setEId(i.id); setSf("inv"); setIvf({ name: i.name, qty: String(i.qty), unitCost: String(i.unitCost), scope: i.scope, currency: i.currency, notes: i.notes || "", sku: i.sku || "" }); }} style={{ background: "none", border: "none", color: "#555", cursor: "pointer", fontSize: 11 }}>Edit</button>
-                    <button onClick={() => { delInv(i.id); }} style={{ background: "none", border: "none", color: "#FF6B6B", cursor: "pointer", fontSize: 11 }}>Delete</button>
+                    <button onClick={() => { if (prompt('Type DELETE to confirm')?.trim().toUpperCase() !== 'DELETE') return; delInv(i.id); }} style={{ background: "none", border: "none", color: "#FF6B6B", cursor: "pointer", fontSize: 11 }}>Delete</button>
                   </div>
                 </div>
               );
@@ -1385,7 +1386,7 @@ Important: If you see multiple amounts, use the total/final amount. For bank tra
               const scopeFilters = debtFilter.filter(f => !f.startsWith("holder:"));
               const scopeOk = scopeFilters.length === 0 || scopeFilters.includes(d.scope);
               const holderOk = holderFilters.length === 0 || holderFilters.includes(d.holder);
-              return scopeOk || holderOk;
+              return scopeOk && holderOk;
             };
             const filtered = sD.filter(matchDebt);
             const fLimit = filtered.reduce((s: number, d: AnyState) => s + cv(d.creditLimit || 0, d.currency, dCur, rates), 0);
@@ -1453,7 +1454,7 @@ Important: If you see multiple amounts, use the total/final amount. For bank tra
               const scopeFilters = debtFilter.filter((f: string) => !f.startsWith("holder:"));
               const scopeOk = scopeFilters.length === 0 || scopeFilters.includes(d.scope);
               const holderOk = holderFilters.length === 0 || holderFilters.includes(d.holder);
-              return scopeOk || holderOk;
+              return scopeOk && holderOk;
             };
             const filteredD = sortedD.filter(matchDebt);
             return filteredD.length === 0 ? <div style={{ color: "#333", textAlign: "center", padding: 30, fontSize: 13 }}>No debts</div> : filteredD.map((d: AnyState) => {
@@ -1477,7 +1478,7 @@ Important: If you see multiple amounts, use the total/final amount. For bank tra
                 </div>
                 <div style={{ display: "flex", gap: 12, marginTop: 6 }}>
                   <button onClick={() => { setEId(d.id); setSf("debt"); setDf({ name: d.name, type: d.type, scope: d.scope, creditLimit: String(d.creditLimit || 0), outstanding: String(d.outstanding), dueAmount: String(d.dueAmount || 0), dueDate: d.dueDate || "", currency: d.currency, notes: d.notes || "", holder: d.holder || "", statementDate: d.statementDate || "" }); }} style={{ background: "none", border: "none", color: "#555", cursor: "pointer", fontSize: 11 }}>Edit</button>
-                  <button onClick={() => { delDebt(d.id); }} style={{ background: "none", border: "none", color: "#FF6B6B", cursor: "pointer", fontSize: 11 }}>Delete</button>
+                  <button onClick={() => { if (prompt('Type DELETE to confirm')?.trim().toUpperCase() !== 'DELETE') return; delDebt(d.id); }} style={{ background: "none", border: "none", color: "#FF6B6B", cursor: "pointer", fontSize: 11 }}>Delete</button>
                 </div>
               </div>
             );
@@ -1539,7 +1540,7 @@ Important: If you see multiple amounts, use the total/final amount. For bank tra
                 <div style={{ display: "flex", gap: 12, marginTop: 8 }}>
                   {!isFullyPaid && <button onClick={() => collectRecv(r)} style={{ background: "#26A17B", border: "none", color: "#fff", padding: "5px 12px", borderRadius: 6, cursor: "pointer", fontSize: 11, fontWeight: 600 }}>✓ Mark Fully Collected</button>}
                   <button onClick={() => { setEId(r.id); setSf("recv"); setRf({ name: r.name, amount: String(r.amount), dueDate: r.dueDate || "", scope: r.scope, currency: r.currency, notes: r.notes || "", from: r.from || "" }); }} style={{ background: "none", border: "none", color: "#555", cursor: "pointer", fontSize: 11 }}>Edit</button>
-                  <button onClick={() => { delRecv(r.id); }} style={{ background: "none", border: "none", color: "#FF6B6B", cursor: "pointer", fontSize: 11 }}>Delete</button>
+                  <button onClick={() => { if (prompt('Type DELETE to confirm')?.trim().toUpperCase() !== 'DELETE') return; delRecv(r.id); }} style={{ background: "none", border: "none", color: "#FF6B6B", cursor: "pointer", fontSize: 11 }}>Delete</button>
                 </div>
               </div>
             );
@@ -1633,7 +1634,7 @@ Important: If you see multiple amounts, use the total/final amount. For bank tra
                 <div style={{ display: "flex", gap: 12, marginTop: 6 }}>
                   {!isSettled && <button onClick={() => { settlePipeline(p.id); }} style={{ background: "#E9C46A", border: "none", color: "#0B0D12", padding: "5px 12px", borderRadius: 6, cursor: "pointer", fontSize: 11, fontWeight: 600 }}>✓ Settle</button>}
                   <button onClick={() => { setEId(p.id); setSf("pipe"); setPf({ name: p.name, grossValue: String(p.grossValue), deliveryRate: String(p.deliveryRate), shippingCost: String(p.shippingCost || 0), codFees: String(p.codFees || 0), returnCost: String(p.returnCost || 0), otherExpenses: String(p.otherExpenses || 0), parcels: String(p.parcels || 0), date: p.date || "", expectedDate: p.expectedDate || "", scope: p.scope, currency: p.currency, notes: p.notes || "", status: p.status }); }} style={{ background: "none", border: "none", color: "#555", cursor: "pointer", fontSize: 11 }}>Edit</button>
-                  <button onClick={() => { delPipeline(p.id); }} style={{ background: "none", border: "none", color: "#FF6B6B", cursor: "pointer", fontSize: 11 }}>Delete</button>
+                  <button onClick={() => { if (prompt('Type DELETE to confirm')?.trim().toUpperCase() !== 'DELETE') return; delPipeline(p.id); }} style={{ background: "none", border: "none", color: "#FF6B6B", cursor: "pointer", fontSize: 11 }}>Delete</button>
                 </div>
               </div>
             );
@@ -1738,14 +1739,14 @@ Important: If you see multiple amounts, use the total/final amount. For bank tra
                   <div style={{ background: "#0B0D12", borderRadius: 6, padding: "5px 6px" }}><div style={{ fontSize: 9, color: "#555" }}>FEES</div><div style={{ fontSize: 11, fontWeight: 700, color: "#FF6B6B" }}>{fm((b.totalFees || 0) + (b.totalShip || 0), b.currency)}</div></div>
                 </div>
                 <div style={{ display: "flex", gap: 12, marginTop: 6 }}>
-                  <button onClick={() => delPnlBatch(b.id)} style={{ background: "none", border: "none", color: "#FF6B6B", cursor: "pointer", fontSize: 11 }}>Delete</button>
+                  <button onClick={() => { if (prompt('Type DELETE to confirm')?.trim().toUpperCase() !== 'DELETE') return; delPnlBatch(b.id); }} style={{ background: "none", border: "none", color: "#FF6B6B", cursor: "pointer", fontSize: 11 }}>Delete</button>
                 </div>
               </div>
             ))
           }
         </div>)}
 
-        {/* ═══ REPORTS ═══ */}
+        {/* ═══ REPORTS / FINANCIAL STATEMENTS ═══ */}
         {view === "report" && (() => {
           const now = new Date();
           const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -1783,15 +1784,56 @@ Important: If you see multiple amounts, use the total/final amount. For bank tra
             if (t.type === "income") incByCat[cat] = (incByCat[cat] || 0) + amt;
           });
 
-          const topExp = filteredTxns.filter((t: AnyState) => t.type === "expense").sort((a: AnyState, b: AnyState) => b.amount - a.amount).slice(0, 10);
+          // Balance sheet data
+          const bsAccounts = accounts.filter((a: AnyState) => bizMatch(a.scope));
+          const bsCryptos = cryptos.filter((c: AnyState) => bizMatch(c.scope));
+          const bsAssets = assets.filter((a: AnyState) => bizMatch(a.scope));
+          const bsInventory = inventory.filter((i: AnyState) => bizMatch(i.scope));
+          const bsDebts = debts.filter((d: AnyState) => bizMatch(d.scope));
 
-          const rDebts = debts.filter((d: AnyState) => bizMatch(d.scope));
-          const rRecv = receivables.filter((r: AnyState) => bizMatch(r.scope));
-          const rAssets = assets.filter((a: AnyState) => bizMatch(a.scope));
+          const totalCashBank = bsAccounts.reduce((s: number, a: AnyState) => s + cv(a.balance, a.currency, dCur, rates), 0);
+          const totalCryptoVal = bsCryptos.reduce((s: number, c: AnyState) => s + (c.amount * (rates[c.coin] || 0)) / (rates[dCur] || 1), 0);
+          const totalFixedVal = bsAssets.reduce((s: number, a: AnyState) => { const val = a.marketValue > 0 ? a.marketValue : getBookValue(a); return s + cv(val, a.currency, dCur, rates); }, 0);
+          const totalInvVal = bsInventory.reduce((s: number, i: AnyState) => s + cv((i.qty || 0) * (i.unitCost || 0), i.currency, dCur, rates), 0);
+          const totalAssetsVal = totalCashBank + totalCryptoVal + totalFixedVal + totalInvVal;
+
+          const debtsByType: Record<string, AnyState[]> = {};
+          bsDebts.forEach((d: AnyState) => { const t = d.type || "other"; if (!debtsByType[t]) debtsByType[t] = []; debtsByType[t].push(d); });
+          const totalLiabilities = bsDebts.reduce((s: number, d: AnyState) => s + cv(d.outstanding, d.currency, dCur, rates), 0);
+          const ownersEquity = totalAssetsVal - totalLiabilities;
+
+          // Cash flow data
+          const debtPaymentTxns = filteredTxns.filter((t: AnyState) => t.debtId && t.type === "expense");
+          const debtPaymentsAmt = debtPaymentTxns.reduce((s: number, t: AnyState) => s + cv(t.amount, accounts.find((a: AnyState) => a.id === t.accountId)?.currency || "PHP", dCur, rates), 0);
+          const recvCollectionTxns = filteredTxns.filter((t: AnyState) => t.receivableId && t.type === "income");
+          const recvCollectionsAmt = recvCollectionTxns.reduce((s: number, t: AnyState) => s + cv(t.amount, accounts.find((a: AnyState) => a.id === t.accountId)?.currency || "PHP", dCur, rates), 0);
+          const assetPurchases = bsAssets.filter((a: AnyState) => a.purchaseDate && dateMatch(a.purchaseDate));
+          const assetPurchasesAmt = assetPurchases.reduce((s: number, a: AnyState) => s + cv(a.purchasePrice || 0, a.currency, dCur, rates), 0);
+
+          const netOperating = rIncome - rExpense;
+          const netInvesting = -assetPurchasesAmt;
+          const netFinancing = recvCollectionsAmt - debtPaymentsAmt;
+          const netCashFlow = netOperating + netInvesting + netFinancing;
+
+          // Styling helpers for statements
+          const sectionHeaderStyle: React.CSSProperties = { fontSize: 13, fontWeight: 700, color: T.textWhite, textTransform: "uppercase" as const, letterSpacing: 1.5, padding: "10px 0 6px", borderLeft: `3px solid #4ECDC4`, paddingLeft: 10, marginBottom: 4 };
+          const subHeaderStyle: React.CSSProperties = { fontSize: 11, fontWeight: 600, color: T.textSoft, padding: "6px 0 2px 16px" };
+          const lineItemStyle: React.CSSProperties = { display: "flex", justifyContent: "space-between", padding: "4px 0 4px 28px", fontSize: 12 };
+          const subtotalStyle: React.CSSProperties = { display: "flex", justifyContent: "space-between", padding: "6px 0 6px 10px", fontSize: 12, fontWeight: 700, borderTop: `1px solid ${T.divider}`, marginTop: 4 };
+          const grandTotalStyle = (val: number): React.CSSProperties => ({ display: "flex", justifyContent: "space-between", padding: "10px 0", fontSize: 16, fontWeight: 700, borderTop: `2px solid ${T.divider}`, marginTop: 8 });
+
+          const tabBtnStyle = (active: boolean): React.CSSProperties => ({ background: active ? "#4ECDC4" : "transparent", color: active ? "#0B0D12" : T.textSoft, border: active ? "none" : `1px solid ${T.cardBorder}`, padding: "8px 16px", borderRadius: 8, cursor: "pointer", fontSize: 12, fontWeight: 700 });
 
           return (
           <div>
-            <div style={Sec}>📊 Reports</div>
+            <div style={Sec}>📊 Financial Statements</div>
+
+            {/* Statement Tab Buttons */}
+            <div style={{ display: "flex", gap: 6, marginBottom: 14 }}>
+              {([["income", "Income Statement"], ["balance", "Balance Sheet"], ["cashflow", "Cash Flow"]] as [string, string][]).map(([k, l]) => (
+                <button key={k} onClick={() => setRptTab(k)} style={tabBtnStyle(rptTab === k)}>{l}</button>
+              ))}
+            </div>
 
             {/* Period Filter */}
             <div style={{ display: "flex", gap: 6, flexWrap: "wrap" as const, marginBottom: 12 }}>
@@ -1806,7 +1848,7 @@ Important: If you see multiple amounts, use the total/final amount. For bank tra
             </div>
 
             {/* Business Filter */}
-            <div style={{ display: "flex", gap: 6, flexWrap: "wrap" as const, marginBottom: 12 }}>
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap" as const, marginBottom: 16 }}>
               <button onClick={() => { const all: Record<string, boolean> = { personal: true }; businesses.forEach((b: AnyState) => { all[b.id] = true; }); setRptBiz(all); }} style={{ background: "transparent", border: `1px solid ${T.cardBorder}`, color: T.textSoft, padding: "4px 10px", borderRadius: 12, cursor: "pointer", fontSize: 10 }}>Select All</button>
               <button onClick={() => setRptBiz({})} style={{ background: "transparent", border: `1px solid ${T.cardBorder}`, color: T.textSoft, padding: "4px 10px", borderRadius: 12, cursor: "pointer", fontSize: 10 }}>Clear</button>
               {[{ id: "personal", name: "Personal", color: "#A8B5E2" }, ...businesses].map((b: AnyState) => (
@@ -1817,104 +1859,221 @@ Important: If you see multiple amounts, use the total/final amount. For bank tra
               ))}
             </div>
 
-            {/* Summary */}
-            {rptSections.summary && (
-              <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr 1fr", gap: 6, marginBottom: 16 }}>
-                <div style={Cd("#95E77E")}><div style={L}>Income</div><div style={{ fontSize: 16, fontWeight: 700, color: "#95E77E", marginTop: 3 }}>{masked(fm(rIncome, dCur, true))}</div></div>
-                <div style={Cd("#FF6B6B")}><div style={L}>Expenses</div><div style={{ fontSize: 16, fontWeight: 700, color: "#FF6B6B", marginTop: 3 }}>{masked(fm(rExpense, dCur, true))}</div></div>
-                <div style={Cd(rIncome - rExpense >= 0 ? "#4ECDC4" : "#FF6B6B")}><div style={L}>Net</div><div style={{ fontSize: 16, fontWeight: 700, color: rIncome - rExpense >= 0 ? "#4ECDC4" : "#FF6B6B", marginTop: 3 }}>{masked(fm(rIncome - rExpense, dCur, true))}</div></div>
-              </div>
-            )}
-
-            {/* Expense Breakdown */}
-            {rptSections.expenses && Object.keys(expByCat).length > 0 && (
-              <div style={{ ...FmS, marginBottom: 14 }}>
-                <div style={{ fontWeight: 700, color: T.textWhite, fontSize: 13, marginBottom: 10 }}>Expense Breakdown</div>
-                {Object.entries(expByCat).sort((a, b) => b[1] - a[1]).map(([cat, amt]) => (
-                  <div key={cat} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 0", borderBottom: `1px solid ${T.divider}` }}>
-                    <span style={{ fontSize: 12, color: T.text }}>{getTxCatLabel(cat)}</span>
-                    <span style={{ fontSize: 12, fontWeight: 700, color: "#FF6B6B" }}>{masked(fm(amt, dCur))}</span>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {/* Income Breakdown */}
-            {rptSections.income && Object.keys(incByCat).length > 0 && (
-              <div style={{ ...FmS, marginBottom: 14 }}>
-                <div style={{ fontWeight: 700, color: T.textWhite, fontSize: 13, marginBottom: 10 }}>Income Breakdown</div>
-                {Object.entries(incByCat).sort((a, b) => b[1] - a[1]).map(([cat, amt]) => (
-                  <div key={cat} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 0", borderBottom: `1px solid ${T.divider}` }}>
-                    <span style={{ fontSize: 12, color: T.text }}>{getTxCatLabel(cat)}</span>
-                    <span style={{ fontSize: 12, fontWeight: 700, color: "#95E77E" }}>{masked(fm(amt, dCur))}</span>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {/* Top Expenses */}
-            {rptSections.topExpenses && topExp.length > 0 && (
-              <div style={{ ...FmS, marginBottom: 14 }}>
-                <div style={{ fontWeight: 700, color: T.textWhite, fontSize: 13, marginBottom: 10 }}>Top 10 Expenses</div>
-                {topExp.map((t: AnyState, i: number) => (
-                  <div key={t.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 0", borderBottom: `1px solid ${T.divider}` }}>
-                    <div>
-                      <span style={{ fontSize: 12, color: T.text }}>{i + 1}. {t.description || "Expense"}</span>
-                      <div style={{ fontSize: 10, color: T.textSoft }}>{t.date} · {getBizShort(t.txScope || "personal")}{t.txCat ? ` · ${getTxCatLabel(t.txCat)}` : ""}</div>
+            {/* ─── INCOME STATEMENT ─── */}
+            {rptTab === "income" && (
+              <div style={FmS}>
+                {/* REVENUE */}
+                <div style={sectionHeaderStyle}>REVENUE</div>
+                {Object.keys(incByCat).length > 0 ? (
+                  <>
+                    {Object.entries(incByCat).sort((a, b) => b[1] - a[1]).map(([cat, amt]) => (
+                      <div key={cat} style={lineItemStyle}>
+                        <span style={{ color: T.text }}>{getTxCatLabel(cat)}</span>
+                        <span style={{ color: "#95E77E", fontWeight: 600 }}>{masked(fm(amt, dCur))}</span>
+                      </div>
+                    ))}
+                    <div style={subtotalStyle}>
+                      <span style={{ color: T.textWhite }}>Total Revenue</span>
+                      <span style={{ color: "#95E77E" }}>{masked(fm(rIncome, dCur))}</span>
                     </div>
-                    <span style={{ fontSize: 12, fontWeight: 700, color: "#FF6B6B" }}>{masked(fm(t.amount, accounts.find((a: AnyState) => a.id === t.accountId)?.currency || "PHP"))}</span>
-                  </div>
-                ))}
-              </div>
-            )}
+                  </>
+                ) : (
+                  <div style={{ color: T.textSoft, fontSize: 12, padding: "8px 28px" }}>No income for this period</div>
+                )}
 
-            {/* Debts Summary */}
-            {rptSections.debts && rDebts.length > 0 && (
-              <div style={{ ...FmS, marginBottom: 14 }}>
-                <div style={{ fontWeight: 700, color: T.textWhite, fontSize: 13, marginBottom: 10 }}>Debts ({rDebts.length})</div>
-                {rDebts.map((d: AnyState) => (
-                  <div key={d.id} style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", borderBottom: `1px solid ${T.divider}` }}>
-                    <div><span style={{ fontSize: 12, color: T.text }}>{d.name}</span><div style={{ fontSize: 10, color: T.textSoft }}>{getBizShort(d.scope)}{d.holder ? ` · ${d.holder}` : ""}</div></div>
-                    <span style={{ fontSize: 12, fontWeight: 700, color: "#FF6B6B" }}>{masked(fm(d.outstanding, d.currency))}</span>
-                  </div>
-                ))}
-                <div style={{ display: "flex", justifyContent: "space-between", paddingTop: 8, fontSize: 13, fontWeight: 700 }}>
-                  <span style={{ color: T.textWhite }}>Total</span>
-                  <span style={{ color: "#FF6B6B" }}>{masked(fm(rDebts.reduce((s: number, d: AnyState) => s + cv(d.outstanding, d.currency, dCur, rates), 0), dCur))}</span>
+                {/* EXPENSES */}
+                <div style={{ ...sectionHeaderStyle, marginTop: 16, borderLeftColor: "#FF6B6B" }}>EXPENSES</div>
+                {Object.keys(expByCat).length > 0 ? (
+                  <>
+                    {Object.entries(expByCat).sort((a, b) => b[1] - a[1]).map(([cat, amt]) => (
+                      <div key={cat} style={lineItemStyle}>
+                        <span style={{ color: T.text }}>{getTxCatLabel(cat)}</span>
+                        <span style={{ color: "#FF6B6B", fontWeight: 600 }}>{masked(fm(amt, dCur))}</span>
+                      </div>
+                    ))}
+                    <div style={subtotalStyle}>
+                      <span style={{ color: T.textWhite }}>Total Expenses</span>
+                      <span style={{ color: "#FF6B6B" }}>{masked(fm(rExpense, dCur))}</span>
+                    </div>
+                  </>
+                ) : (
+                  <div style={{ color: T.textSoft, fontSize: 12, padding: "8px 28px" }}>No expenses for this period</div>
+                )}
+
+                {/* NET INCOME */}
+                <div style={grandTotalStyle(rIncome - rExpense)}>
+                  <span style={{ color: T.textWhite }}>NET INCOME</span>
+                  <span style={{ color: rIncome - rExpense >= 0 ? "#95E77E" : "#FF6B6B" }}>{masked(fm(rIncome - rExpense, dCur))}</span>
                 </div>
               </div>
             )}
 
-            {/* Receivables Summary */}
-            {rptSections.receivables && rRecv.length > 0 && (
-              <div style={{ ...FmS, marginBottom: 14 }}>
-                <div style={{ fontWeight: 700, color: T.textWhite, fontSize: 13, marginBottom: 10 }}>Receivables ({rRecv.length})</div>
-                {rRecv.map((r: AnyState) => {
-                  const rem = r.amount - (r.received || 0);
-                  return (
-                    <div key={r.id} style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", borderBottom: `1px solid ${T.divider}` }}>
-                      <div><span style={{ fontSize: 12, color: T.text }}>{r.name}</span><div style={{ fontSize: 10, color: T.textSoft }}>{r.from ? `From: ${r.from} · ` : ""}{getBizShort(r.scope)}</div></div>
-                      <span style={{ fontSize: 12, fontWeight: 700, color: rem > 0 ? "#26A17B" : "#95E77E" }}>{masked(fm(rem, r.currency))}</span>
+            {/* ─── BALANCE SHEET ─── */}
+            {rptTab === "balance" && (
+              <div style={FmS}>
+                {/* ASSETS */}
+                <div style={sectionHeaderStyle}>ASSETS</div>
+
+                {/* Cash & Bank Accounts */}
+                {bsAccounts.length > 0 && (
+                  <>
+                    <div style={subHeaderStyle}>Cash &amp; Bank Accounts</div>
+                    {bsAccounts.map((a: AnyState) => (
+                      <div key={a.id} style={lineItemStyle}>
+                        <span style={{ color: T.text }}>{a.name}</span>
+                        <span style={{ color: T.textWhite, fontWeight: 600 }}>{masked(fm(cv(a.balance, a.currency, dCur, rates), dCur))}</span>
+                      </div>
+                    ))}
+                  </>
+                )}
+
+                {/* Crypto Holdings */}
+                {bsCryptos.length > 0 && (
+                  <>
+                    <div style={subHeaderStyle}>Crypto Holdings</div>
+                    {bsCryptos.map((c: AnyState) => {
+                      const val = (c.amount * (rates[c.coin] || 0)) / (rates[dCur] || 1);
+                      return (
+                        <div key={c.id} style={lineItemStyle}>
+                          <span style={{ color: T.text }}>{c.coin} ({c.amount})</span>
+                          <span style={{ color: T.textWhite, fontWeight: 600 }}>{masked(fm(val, dCur))}</span>
+                        </div>
+                      );
+                    })}
+                  </>
+                )}
+
+                {/* Fixed Assets */}
+                {bsAssets.length > 0 && (
+                  <>
+                    <div style={subHeaderStyle}>Fixed Assets</div>
+                    {bsAssets.map((a: AnyState) => {
+                      const val = a.marketValue > 0 ? a.marketValue : getBookValue(a);
+                      return (
+                        <div key={a.id} style={lineItemStyle}>
+                          <span style={{ color: T.text }}>{a.name}</span>
+                          <span style={{ color: T.textWhite, fontWeight: 600 }}>{masked(fm(cv(val, a.currency, dCur, rates), dCur))}</span>
+                        </div>
+                      );
+                    })}
+                  </>
+                )}
+
+                {/* Inventory */}
+                {bsInventory.length > 0 && (
+                  <>
+                    <div style={subHeaderStyle}>Inventory</div>
+                    {bsInventory.map((i: AnyState) => {
+                      const val = (i.qty || 0) * (i.unitCost || 0);
+                      return (
+                        <div key={i.id} style={lineItemStyle}>
+                          <span style={{ color: T.text }}>{i.name} ({i.qty} units)</span>
+                          <span style={{ color: T.textWhite, fontWeight: 600 }}>{masked(fm(cv(val, i.currency, dCur, rates), dCur))}</span>
+                        </div>
+                      );
+                    })}
+                  </>
+                )}
+
+                <div style={subtotalStyle}>
+                  <span style={{ color: T.textWhite }}>Total Assets</span>
+                  <span style={{ color: "#4ECDC4" }}>{masked(fm(totalAssetsVal, dCur))}</span>
+                </div>
+
+                {bsAccounts.length === 0 && bsCryptos.length === 0 && bsAssets.length === 0 && bsInventory.length === 0 && (
+                  <div style={{ color: T.textSoft, fontSize: 12, padding: "8px 28px" }}>No assets found</div>
+                )}
+
+                {/* LIABILITIES */}
+                <div style={{ ...sectionHeaderStyle, marginTop: 16, borderLeftColor: "#FF6B6B" }}>LIABILITIES</div>
+                {bsDebts.length > 0 ? (
+                  <>
+                    {Object.entries(debtsByType).map(([type, items]) => (
+                      <div key={type}>
+                        <div style={subHeaderStyle}>{DEBT_TYPES[type]?.l || type}</div>
+                        {(items as AnyState[]).map((d: AnyState) => (
+                          <div key={d.id} style={lineItemStyle}>
+                            <span style={{ color: T.text }}>{d.name}{d.holder ? ` (${d.holder})` : ""}</span>
+                            <span style={{ color: "#FF6B6B", fontWeight: 600 }}>{masked(fm(cv(d.outstanding, d.currency, dCur, rates), dCur))}</span>
+                          </div>
+                        ))}
+                      </div>
+                    ))}
+                    <div style={subtotalStyle}>
+                      <span style={{ color: T.textWhite }}>Total Liabilities</span>
+                      <span style={{ color: "#FF6B6B" }}>{masked(fm(totalLiabilities, dCur))}</span>
                     </div>
-                  );
-                })}
+                  </>
+                ) : (
+                  <div style={{ color: T.textSoft, fontSize: 12, padding: "8px 28px" }}>No liabilities</div>
+                )}
+
+                {/* OWNER'S EQUITY */}
+                <div style={grandTotalStyle(ownersEquity)}>
+                  <span style={{ color: T.textWhite }}>{"OWNER\u2019S EQUITY"}</span>
+                  <span style={{ color: ownersEquity >= 0 ? "#95E77E" : "#FF6B6B" }}>{masked(fm(ownersEquity, dCur))}</span>
+                </div>
+                <div style={{ fontSize: 10, color: T.textSoft, textAlign: "right" as const, marginTop: 2 }}>Total Assets - Total Liabilities</div>
               </div>
             )}
 
-            {/* Assets Summary */}
-            {rptSections.assets && rAssets.length > 0 && (
-              <div style={{ ...FmS, marginBottom: 14 }}>
-                <div style={{ fontWeight: 700, color: T.textWhite, fontSize: 13, marginBottom: 10 }}>Assets ({rAssets.length})</div>
-                {rAssets.map((a: AnyState) => (
-                  <div key={a.id} style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", borderBottom: `1px solid ${T.divider}` }}>
-                    <div><span style={{ fontSize: 12, color: T.text }}>{a.name}</span><div style={{ fontSize: 10, color: T.textSoft }}>{getBizShort(a.scope)}</div></div>
-                    <span style={{ fontSize: 12, fontWeight: 700, color: "#D4A373" }}>{masked(fm(a.marketValue > 0 ? a.marketValue : a.purchasePrice, a.currency))}</span>
-                  </div>
-                ))}
+            {/* ─── CASH FLOW ─── */}
+            {rptTab === "cashflow" && (
+              <div style={FmS}>
+                {/* OPERATING ACTIVITIES */}
+                <div style={sectionHeaderStyle}>OPERATING ACTIVITIES</div>
+                <div style={lineItemStyle}>
+                  <span style={{ color: T.text }}>Income Received</span>
+                  <span style={{ color: "#95E77E", fontWeight: 600 }}>{masked(fm(rIncome, dCur))}</span>
+                </div>
+                <div style={lineItemStyle}>
+                  <span style={{ color: T.text }}>Expenses Paid</span>
+                  <span style={{ color: "#FF6B6B", fontWeight: 600 }}>({masked(fm(rExpense, dCur))})</span>
+                </div>
+                <div style={subtotalStyle}>
+                  <span style={{ color: T.textWhite }}>Net Operating</span>
+                  <span style={{ color: netOperating >= 0 ? "#95E77E" : "#FF6B6B" }}>{masked(fm(netOperating, dCur))}</span>
+                </div>
+
+                {/* INVESTING ACTIVITIES */}
+                <div style={{ ...sectionHeaderStyle, marginTop: 16, borderLeftColor: "#F4A261" }}>INVESTING ACTIVITIES</div>
+                {assetPurchases.length > 0 ? (
+                  assetPurchases.map((a: AnyState) => (
+                    <div key={a.id} style={lineItemStyle}>
+                      <span style={{ color: T.text }}>{a.name}</span>
+                      <span style={{ color: "#FF6B6B", fontWeight: 600 }}>({masked(fm(cv(a.purchasePrice || 0, a.currency, dCur, rates), dCur))})</span>
+                    </div>
+                  ))
+                ) : (
+                  <div style={{ color: T.textSoft, fontSize: 12, padding: "8px 28px" }}>No asset purchases in this period</div>
+                )}
+                <div style={subtotalStyle}>
+                  <span style={{ color: T.textWhite }}>Net Investing</span>
+                  <span style={{ color: netInvesting >= 0 ? "#95E77E" : "#FF6B6B" }}>{netInvesting < 0 ? `(${masked(fm(Math.abs(netInvesting), dCur))})` : masked(fm(netInvesting, dCur))}</span>
+                </div>
+
+                {/* FINANCING ACTIVITIES */}
+                <div style={{ ...sectionHeaderStyle, marginTop: 16, borderLeftColor: "#C896E0" }}>FINANCING ACTIVITIES</div>
+                <div style={lineItemStyle}>
+                  <span style={{ color: T.text }}>Debt Payments</span>
+                  <span style={{ color: "#FF6B6B", fontWeight: 600 }}>{debtPaymentsAmt > 0 ? `(${masked(fm(debtPaymentsAmt, dCur))})` : masked(fm(0, dCur))}</span>
+                </div>
+                <div style={lineItemStyle}>
+                  <span style={{ color: T.text }}>Receivables Collected</span>
+                  <span style={{ color: "#95E77E", fontWeight: 600 }}>{masked(fm(recvCollectionsAmt, dCur))}</span>
+                </div>
+                <div style={subtotalStyle}>
+                  <span style={{ color: T.textWhite }}>Net Financing</span>
+                  <span style={{ color: netFinancing >= 0 ? "#95E77E" : "#FF6B6B" }}>{masked(fm(netFinancing, dCur))}</span>
+                </div>
+
+                {/* NET CASH FLOW */}
+                <div style={grandTotalStyle(netCashFlow)}>
+                  <span style={{ color: T.textWhite }}>NET CASH FLOW</span>
+                  <span style={{ color: netCashFlow >= 0 ? "#95E77E" : "#FF6B6B" }}>{masked(fm(netCashFlow, dCur))}</span>
+                </div>
               </div>
             )}
-
-            {filteredTxns.length === 0 && <div style={{ color: T.textSoft, textAlign: "center", padding: 30, fontSize: 13 }}>No transactions for this period</div>}
           </div>
           );
         })()}
@@ -2126,7 +2285,7 @@ Important: If you see multiple amounts, use the total/final amount. For bank tra
                     {acc?.currency !== dCur && <div style={{ fontSize: 10, color: "#555" }}>≈ {fm(cv(tx.amount, acc?.currency || "PHP", dCur, rates), dCur, true)}</div>}
                   </div>
                   <button onClick={() => { setEId(tx.id); setSf("tx"); setTf({ accountId: tx.accountId, toAccountId: tx.toAccountId || "", type: tx.type, amount: String(tx.amount), description: tx.description || "", date: tx.date, receivableId: tx.receivableId || "", debtId: tx.debtId || "", txCat: tx.txCat || "", txScope: tx.txScope || "personal" }); }} style={{ background: "none", border: "none", color: "#555", cursor: "pointer", fontSize: 11 }}>✎</button>
-                  <button onClick={() => { delTx(tx); }} style={{ background: "none", border: "none", color: "#444", cursor: "pointer", fontSize: 14 }}>✕</button>
+                  <button onClick={() => { if (prompt('Type DELETE to confirm')?.trim().toUpperCase() !== 'DELETE') return; delTx(tx); }} style={{ background: "none", border: "none", color: "#444", cursor: "pointer", fontSize: 14 }}>✕</button>
                 </div>
               </div>
             );
