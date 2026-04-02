@@ -1111,85 +1111,6 @@ Important: If you see multiple amounts, use the total/final amount. For bank tra
             );
           })()}
 
-          {/* ── Smart Card Advisor ── */}
-          {(() => {
-            const today = new Date();
-            const todayDay = today.getDate();
-            const cardsWithStatement = sD.filter((d: AnyState) => d.type === "credit_card" && d.statementDate && d.outstanding < (d.creditLimit || 0));
-            if (cardsWithStatement.length === 0) return null;
-
-            const analyzed = cardsWithStatement.map((d: AnyState) => {
-              const stmtDay = new Date(d.statementDate).getDate();
-              // Days since last statement cycle started
-              let daysSinceStmt: number;
-              if (todayDay >= stmtDay) {
-                daysSinceStmt = todayDay - stmtDay;
-              } else {
-                // Statement day is later in month — we're in the previous cycle
-                const daysInLastMonth = new Date(today.getFullYear(), today.getMonth(), 0).getDate();
-                daysSinceStmt = (daysInLastMonth - stmtDay) + todayDay;
-              }
-              const usable = daysSinceStmt <= 7;
-              const available = (d.creditLimit || 0) - d.outstanding;
-              const daysLeft = 7 - daysSinceStmt;
-              return { ...d, stmtDay, daysSinceStmt, usable, available, daysLeft };
-            }).sort((a: AnyState, b: AnyState) => b.usable - a.usable || b.available - a.available);
-
-            const usableCards = analyzed.filter((c: AnyState) => c.usable);
-            const notUsable = analyzed.filter((c: AnyState) => !c.usable);
-
-            return (
-              <div style={{ background: T.card, borderRadius: 12, padding: 14, marginBottom: 14, border: `1px solid ${T.cardBorder}` }}>
-                <div style={{ fontSize: 11, fontWeight: 700, color: "#4ECDC4", textTransform: "uppercase" as const, letterSpacing: 2, marginBottom: 10 }}>💳 Smart Card Advisor</div>
-                <div style={{ fontSize: 11, color: T.textSoft, marginBottom: 10 }}>Cards within 7 days of statement date are safe to use for new purchases.</div>
-                {usableCards.length > 0 && (
-                  <div style={{ marginBottom: 8 }}>
-                    <div style={{ fontSize: 10, fontWeight: 700, color: "#95E77E", textTransform: "uppercase" as const, marginBottom: 6 }}>✅ Safe to use ({usableCards.length})</div>
-                    {(showAllSafe ? usableCards : usableCards.slice(0, 3)).map((c: AnyState) => (
-                      <div key={c.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 10px", background: "#95E77E11", borderRadius: 8, marginBottom: 4, borderLeft: "3px solid #95E77E" }}>
-                        <div>
-                          <div style={{ fontSize: 13, fontWeight: 600, color: T.textWhite }}>{c.name}</div>
-                          <div style={{ fontSize: 10, color: T.textSoft }}>{c.holder ? `${c.holder} · ` : ""}Stmt day {c.stmtDay} · {c.daysLeft}d left to use</div>
-                        </div>
-                        <div style={{ textAlign: "right" as const }}>
-                          <div style={{ fontSize: 14, fontWeight: 700, color: "#95E77E" }}>{masked(fm(c.available, c.currency))}</div>
-                          <div style={{ fontSize: 9, color: T.textSoft }}>available</div>
-                        </div>
-                      </div>
-                    ))}
-                    {usableCards.length > 3 && (
-                      <button onClick={() => setShowAllSafe(!showAllSafe)} style={{ width: "100%", background: "none", border: "none", color: "#95E77E", cursor: "pointer", fontSize: 11, fontWeight: 600, padding: "6px 0", textAlign: "center" as const }}>
-                        {showAllSafe ? "▲ Show less" : `▼ Show ${usableCards.length - 3} more`}
-                      </button>
-                    )}
-                  </div>
-                )}
-                {notUsable.length > 0 && (
-                  <div>
-                    <div style={{ fontSize: 10, fontWeight: 700, color: "#FF6B6B", textTransform: "uppercase" as const, marginBottom: 6 }}>⛔ Avoid using ({notUsable.length})</div>
-                    {(showAllAvoid ? notUsable : notUsable.slice(0, 3)).map((c: AnyState) => (
-                      <div key={c.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 10px", background: "#FF6B6B08", borderRadius: 8, marginBottom: 4, borderLeft: "3px solid #FF6B6B33", opacity: 0.6 }}>
-                        <div>
-                          <div style={{ fontSize: 13, fontWeight: 600, color: T.text }}>{c.name}</div>
-                          <div style={{ fontSize: 10, color: T.textSoft }}>{c.holder ? `${c.holder} · ` : ""}Stmt day {c.stmtDay} · {c.daysSinceStmt}d since stmt</div>
-                        </div>
-                        <div style={{ textAlign: "right" as const }}>
-                          <div style={{ fontSize: 13, color: T.textSoft }}>{masked(fm(c.available, c.currency))}</div>
-                          <div style={{ fontSize: 9, color: "#FF6B6B" }}>too close to statement</div>
-                        </div>
-                      </div>
-                    ))}
-                    {notUsable.length > 3 && (
-                      <button onClick={() => setShowAllAvoid(!showAllAvoid)} style={{ width: "100%", background: "none", border: "none", color: "#FF6B6B", cursor: "pointer", fontSize: 11, fontWeight: 600, padding: "6px 0", textAlign: "center" as const }}>
-                        {showAllAvoid ? "▲ Show less" : `▼ Show ${notUsable.length - 3} more`}
-                      </button>
-                    )}
-                  </div>
-                )}
-              </div>
-            );
-          })()}
-
           {/* Net Worth Calculator */}
           <div style={{ background: "#12141A", borderRadius: 12, padding: "14px", marginBottom: 16 }}>
             <div style={{ fontSize: 11, fontWeight: 700, color: "#666", textTransform: "uppercase" as const, letterSpacing: 2, marginBottom: 12 }}>Net Worth Calculator</div>
@@ -1267,6 +1188,56 @@ Important: If you see multiple amounts, use the total/final amount. For bank tra
             </div>
           )}
           {chartData.length === 0 && <div style={{ background: "#12141A", borderRadius: 10, padding: 20, textAlign: "center", color: "#333", fontSize: 13, marginBottom: 20 }}>📊 Add accounts to start tracking</div>}
+
+          {/* ── Smart Card Advisor ── */}
+          {(() => {
+            const today = new Date();
+            const todayDay = today.getDate();
+            const cardsWithStatement = sD.filter((d: AnyState) => d.type === "credit_card" && d.statementDate && d.outstanding < (d.creditLimit || 0));
+            if (cardsWithStatement.length === 0) return null;
+            const analyzed = cardsWithStatement.map((d: AnyState) => {
+              const stmtDay = new Date(d.statementDate).getDate();
+              let daysSinceStmt: number;
+              if (todayDay >= stmtDay) { daysSinceStmt = todayDay - stmtDay; }
+              else { const daysInLastMonth = new Date(today.getFullYear(), today.getMonth(), 0).getDate(); daysSinceStmt = (daysInLastMonth - stmtDay) + todayDay; }
+              const usable = daysSinceStmt <= 7;
+              const available = (d.creditLimit || 0) - d.outstanding;
+              const daysLeft = 7 - daysSinceStmt;
+              return { ...d, stmtDay, daysSinceStmt, usable, available, daysLeft };
+            }).sort((a: AnyState, b: AnyState) => b.usable - a.usable || b.available - a.available);
+            const usableCards = analyzed.filter((c: AnyState) => c.usable);
+            const notUsable = analyzed.filter((c: AnyState) => !c.usable);
+            return (
+              <div style={{ background: T.card, borderRadius: 12, padding: 14, marginBottom: 14, border: `1px solid ${T.cardBorder}` }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: "#4ECDC4", textTransform: "uppercase" as const, letterSpacing: 2, marginBottom: 10 }}>💳 Smart Card Advisor</div>
+                <div style={{ fontSize: 11, color: T.textSoft, marginBottom: 10 }}>Cards within 7 days of statement date are safe to use for new purchases.</div>
+                {usableCards.length > 0 && (
+                  <div style={{ marginBottom: 8 }}>
+                    <div style={{ fontSize: 10, fontWeight: 700, color: "#95E77E", textTransform: "uppercase" as const, marginBottom: 6 }}>✅ Safe to use ({usableCards.length})</div>
+                    {(showAllSafe ? usableCards : usableCards.slice(0, 3)).map((c: AnyState) => (
+                      <div key={c.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 10px", background: "#95E77E11", borderRadius: 8, marginBottom: 4, borderLeft: "3px solid #95E77E" }}>
+                        <div><div style={{ fontSize: 13, fontWeight: 600, color: T.textWhite }}>{c.name}</div><div style={{ fontSize: 10, color: T.textSoft }}>{c.holder ? `${c.holder} · ` : ""}Stmt day {c.stmtDay} · {c.daysLeft}d left to use</div></div>
+                        <div style={{ textAlign: "right" as const }}><div style={{ fontSize: 14, fontWeight: 700, color: "#95E77E" }}>{masked(fm(c.available, c.currency))}</div><div style={{ fontSize: 9, color: T.textSoft }}>available</div></div>
+                      </div>
+                    ))}
+                    {usableCards.length > 3 && <button onClick={() => setShowAllSafe(!showAllSafe)} style={{ width: "100%", background: "none", border: "none", color: "#95E77E", cursor: "pointer", fontSize: 11, fontWeight: 600, padding: "6px 0", textAlign: "center" as const }}>{showAllSafe ? "▲ Show less" : `▼ Show ${usableCards.length - 3} more`}</button>}
+                  </div>
+                )}
+                {notUsable.length > 0 && (
+                  <div>
+                    <div style={{ fontSize: 10, fontWeight: 700, color: "#FF6B6B", textTransform: "uppercase" as const, marginBottom: 6 }}>⛔ Avoid using ({notUsable.length})</div>
+                    {(showAllAvoid ? notUsable : notUsable.slice(0, 3)).map((c: AnyState) => (
+                      <div key={c.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 10px", background: "#FF6B6B08", borderRadius: 8, marginBottom: 4, borderLeft: "3px solid #FF6B6B33", opacity: 0.6 }}>
+                        <div><div style={{ fontSize: 13, fontWeight: 600, color: T.text }}>{c.name}</div><div style={{ fontSize: 10, color: T.textSoft }}>{c.holder ? `${c.holder} · ` : ""}Stmt day {c.stmtDay} · {c.daysSinceStmt}d since stmt</div></div>
+                        <div style={{ textAlign: "right" as const }}><div style={{ fontSize: 13, color: T.textSoft }}>{masked(fm(c.available, c.currency))}</div><div style={{ fontSize: 9, color: "#FF6B6B" }}>too close to statement</div></div>
+                      </div>
+                    ))}
+                    {notUsable.length > 3 && <button onClick={() => setShowAllAvoid(!showAllAvoid)} style={{ width: "100%", background: "none", border: "none", color: "#FF6B6B", cursor: "pointer", fontSize: 11, fontWeight: 600, padding: "6px 0", textAlign: "center" as const }}>{showAllAvoid ? "▲ Show less" : `▼ Show ${notUsable.length - 3} more`}</button>}
+                  </div>
+                )}
+              </div>
+            );
+          })()}
 
           <div style={Sec}>💱 Rates</div>
           <div style={{ display: "flex", flexWrap: "wrap" as const, gap: 6 }}>{Object.entries(rates).filter(([k]) => k !== "PHP").map(([k, v]) => <div key={k} style={{ background: "#12141A", borderRadius: 6, padding: "4px 8px", fontSize: 11 }}><span style={{ color: "#888" }}>{k}</span> <span style={{ color: "#ccc", fontWeight: 600 }}>₱{v.toLocaleString("en", { maximumFractionDigits: 2 })}</span></div>)}</div>
