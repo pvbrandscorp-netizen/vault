@@ -118,6 +118,8 @@ export default function Vault() {
   const [showRates, setShowRates] = useState(false);
   const [nwToggles, setNwToggles] = useState<Record<string, boolean>>({ cash: true, crypto: true, receivable: false, pipeline: false, debtAll: false, dueNow: false, due60: false, fixedAssets: false, inventory: false });
   const [assetSub, setAssetSub] = useState("fixed");
+  const [accFilter, setAccFilter] = useState<string[]>(["all"]);
+  const [debtFilter, setDebtFilter] = useState<string[]>(["all"]);
   const [scanResult, setScanResult] = useState<AnyState>(null);
   const [scanLoading, setScanLoading] = useState(false);
   const [scanImg, setScanImg] = useState<string | null>(null);
@@ -346,6 +348,45 @@ export default function Vault() {
       </optgroup>
     </select>
   );
+
+  // Generic filter toggle helper
+  const toggleFilter = (filters: string[], id: string, setFilters: (v: string[]) => void) => {
+    if (id === "all") { setFilters(["all"]); return; }
+    const without = filters.filter(s => s !== "all");
+    if (without.includes(id)) {
+      const next = without.filter(s => s !== id);
+      setFilters(next.length === 0 ? ["all"] : next);
+    } else {
+      setFilters([...without, id]);
+    }
+  };
+  const filterMatch = (filters: string[], itemScope: string) => {
+    if (filters.includes("all")) return true;
+    return filters.includes(itemScope);
+  };
+
+  // Filter chips component
+  const FilterChips = ({ filters, setFilters, extraChips }: { filters: string[]; setFilters: (v: string[]) => void; extraChips?: Array<{ id: string; label: string; color: string }> }) => {
+    const allChips = [
+      { id: "all", label: "All", color: "#4ECDC4" },
+      { id: "personal", label: "Personal", color: "#A8B5E2" },
+      ...businesses.map((b: AnyState) => ({ id: b.id, label: b.name, color: b.color })),
+      ...(extraChips || []),
+    ];
+    return (
+      <div style={{ display: "flex", gap: 5, flexWrap: "wrap" as const, marginBottom: 12 }}>
+        {allChips.map(ch => {
+          const active = filters.includes(ch.id) || (filters.includes("all") && ch.id !== "all");
+          return (
+            <button key={ch.id} onClick={() => toggleFilter(filters, ch.id, setFilters)}
+              style={{ background: filters.includes(ch.id) ? ch.color + "22" : "transparent", border: `1px solid ${filters.includes(ch.id) ? ch.color : T.cardBorder}`, color: filters.includes(ch.id) ? ch.color : T.textSoft, padding: "4px 10px", borderRadius: 20, cursor: "pointer", fontSize: 10, fontWeight: 600, opacity: active || filters.includes(ch.id) ? 1 : 0.5 }}>
+              {ch.label}
+            </button>
+          );
+        })}
+      </div>
+    );
+  };
 
   // Click-outside handler for scope dropdown
   useEffect(() => {
@@ -1128,6 +1169,31 @@ Important: If you see multiple amounts, use the total/final amount. For bank tra
         {/* ═══ ACCOUNTS ═══ */}
         {view === "acc" && (<div>
           <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 14 }}><div style={Sec}>Accounts</div><button style={BtnS("#4ECDC4")} onClick={() => { setSf("acc"); setEId(null); setAf({ name: "", category: "bank", scope: scope === "all" ? "personal" : scope, balance: "", currency: "PHP", notes: "" }); }}>+ Add</button></div>
+
+          {/* Account Summary by scope */}
+          <FilterChips filters={accFilter} setFilters={setAccFilter} />
+          {(() => {
+            const filtered = sA.filter((a: AnyState) => filterMatch(accFilter, a.scope));
+            const groups: Record<string, AnyState[]> = {};
+            filtered.forEach((a: AnyState) => { const k = a.scope || "personal"; if (!groups[k]) groups[k] = []; groups[k].push(a); });
+            const groupKeys = Object.keys(groups);
+            if (groupKeys.length === 0) return null;
+            return (
+              <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : groupKeys.length <= 3 ? `repeat(${groupKeys.length}, 1fr)` : "1fr 1fr", gap: 6, marginBottom: 14 }}>
+                {groupKeys.map(k => {
+                  const items = groups[k];
+                  const total = items.reduce((s: number, a: AnyState) => s + cv(a.balance, a.currency, dCur, rates), 0);
+                  return (
+                    <div key={k} style={{ ...Cd(getBizColor(k)), cursor: "pointer" }} onClick={() => toggleFilter(accFilter, k, setAccFilter)}>
+                      <div style={L}>{getBizName(k)}</div>
+                      <div style={{ fontSize: 16, fontWeight: 700, color: getBizColor(k), marginTop: 3 }}>{masked(fm(total, dCur, true))}</div>
+                      <div style={{ fontSize: 10, color: T.textSoft }}>{items.length} account{items.length !== 1 ? "s" : ""}</div>
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })()}
           {sf === "acc" && (
             <div style={FmS}><div style={{ fontWeight: 700, color: "#fff", marginBottom: 12 }}>{eId ? "Edit" : "New Account"}</div>
               <div style={G2}>
@@ -1141,8 +1207,8 @@ Important: If you see multiple amounts, use the total/final amount. For bank tra
               <div style={FlEnd}><button style={CnclS} onClick={() => { setSf(null); setEId(null); }}>Cancel</button><button style={BtnS("#4ECDC4")} onClick={eId ? saveEditAcc : addAccount}>{eId ? "Save" : "Add"}</button></div>
             </div>
           )}
-          {sA.length === 0 ? <div style={{ color: "#333", textAlign: "center", padding: 30, fontSize: 13 }}>No accounts</div> :
-            sA.map((a: AnyState) => { const c = ACCT_CATS[a.category]; return (
+          {(() => { const filtered = sA.filter((a: AnyState) => filterMatch(accFilter, a.scope)); return filtered.length === 0 ? <div style={{ color: "#333", textAlign: "center", padding: 30, fontSize: 13 }}>No accounts</div> :
+            filtered.map((a: AnyState) => { const c = ACCT_CATS[a.category]; return (
               <div key={a.id} style={{ ...Cd(c?.c || "#555"), marginBottom: 8 }}>
                 <div style={{ display: "flex", justifyContent: "space-between" }}>
                   <div><div style={{ fontSize: 15, fontWeight: 700, color: "#fff" }}>{c?.i} {a.name}</div><div style={{ fontSize: 10, color: "#555", marginTop: 2 }}>{getBizShort(a.scope)} · {a.currency}</div></div>
@@ -1150,7 +1216,7 @@ Important: If you see multiple amounts, use the total/final amount. For bank tra
                 </div>
                 <div style={{ display: "flex", gap: 12, marginTop: 8 }}><button onClick={() => { setEId(a.id); setSf("acc"); setAf({ name: a.name, category: a.category, scope: a.scope, balance: String(a.balance), currency: a.currency, notes: a.notes || "" }); }} style={{ background: "none", border: "none", color: "#555", cursor: "pointer", fontSize: 11 }}>Edit</button><button onClick={() => { delAcc(a.id); }} style={{ background: "none", border: "none", color: "#FF6B6B", cursor: "pointer", fontSize: 11 }}>Delete</button></div>
               </div>
-            ); })}
+            ); })})()}
         </div>)}
 
         {/* ═══ CRYPTO ═══ */}
@@ -1302,12 +1368,66 @@ Important: If you see multiple amounts, use the total/final amount. For bank tra
 
         {/* ═══ DEBTS ═══ */}
         {view === "debt" && (<div>
-          <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr 1fr", gap: 6, marginBottom: 10 }}>
-            <div style={{ background: "#12141A", borderRadius: 8, padding: "8px" }}><div style={{ fontSize: 9, color: "#555", textTransform: "uppercase" as const }}>Limit</div><div style={{ fontSize: 14, fontWeight: 700, color: "#A8B5E2", marginTop: 3 }}>{fm(tLimit, dCur, true)}</div></div>
-            <div style={{ background: "#12141A", borderRadius: 8, padding: "8px" }}><div style={{ fontSize: 9, color: "#555", textTransform: "uppercase" as const }}>Outstanding</div><div style={{ fontSize: 14, fontWeight: 700, color: "#FF6B6B", marginTop: 3 }}>{fm(tDebt, dCur, true)}</div></div>
-            <div style={{ background: "#12141A", borderRadius: 8, padding: "8px" }}><div style={{ fontSize: 9, color: "#555", textTransform: "uppercase" as const }}>Available</div><div style={{ fontSize: 14, fontWeight: 700, color: "#95E77E", marginTop: 3 }}>{fm(tLimit - tDebt, dCur, true)}</div></div>
-          </div>
           <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 14 }}><div style={Sec}>Cards & Loans</div><button style={BtnS("#FF6B6B", "#fff")} onClick={() => { setSf("debt"); setEId(null); setDf({ name: "", type: "credit_card", scope: scope === "all" ? "personal" : scope, creditLimit: "", outstanding: "", dueAmount: "", dueDate: "", currency: "PHP", notes: "", holder: "", statementDate: "" }); }}>+ Add</button></div>
+
+          {/* Debt filters — by scope + holder */}
+          {(() => {
+            const holders = [...new Set(sD.map((d: AnyState) => d.holder).filter(Boolean))];
+            const holderChips = holders.map(h => ({ id: `holder:${h}`, label: h, color: "#E9C46A" }));
+            return <FilterChips filters={debtFilter} setFilters={setDebtFilter} extraChips={holderChips} />;
+          })()}
+
+          {/* Debt summary cards */}
+          {(() => {
+            const matchDebt = (d: AnyState) => {
+              if (debtFilter.includes("all")) return true;
+              const holderFilters = debtFilter.filter(f => f.startsWith("holder:")).map(f => f.replace("holder:", ""));
+              const scopeFilters = debtFilter.filter(f => !f.startsWith("holder:"));
+              const scopeOk = scopeFilters.length === 0 || scopeFilters.includes(d.scope);
+              const holderOk = holderFilters.length === 0 || holderFilters.includes(d.holder);
+              return scopeOk || holderOk;
+            };
+            const filtered = sD.filter(matchDebt);
+            const fLimit = filtered.reduce((s: number, d: AnyState) => s + cv(d.creditLimit || 0, d.currency, dCur, rates), 0);
+            const fDebt = filtered.reduce((s: number, d: AnyState) => s + cv(d.outstanding, d.currency, dCur, rates), 0);
+
+            // Group by holder + scope
+            const groups: Record<string, { label: string; color: string; items: AnyState[] }> = {};
+            filtered.forEach((d: AnyState) => {
+              if (d.holder) {
+                const k = `holder:${d.holder}`;
+                if (!groups[k]) groups[k] = { label: d.holder, color: "#E9C46A", items: [] };
+                groups[k].items.push(d);
+              }
+              const sk = d.scope || "personal";
+              if (!groups[sk]) groups[sk] = { label: getBizName(sk), color: getBizColor(sk), items: [] };
+              groups[sk].items.push(d);
+            });
+
+            return (<>
+              <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr 1fr", gap: 6, marginBottom: 10 }}>
+                <div style={{ background: T.card, borderRadius: 8, padding: "8px" }}><div style={{ fontSize: 9, color: T.textSoft, textTransform: "uppercase" as const }}>Limit</div><div style={{ fontSize: 14, fontWeight: 700, color: "#A8B5E2", marginTop: 3 }}>{masked(fm(fLimit, dCur, true))}</div></div>
+                <div style={{ background: T.card, borderRadius: 8, padding: "8px" }}><div style={{ fontSize: 9, color: T.textSoft, textTransform: "uppercase" as const }}>Outstanding</div><div style={{ fontSize: 14, fontWeight: 700, color: "#FF6B6B", marginTop: 3 }}>{masked(fm(fDebt, dCur, true))}</div></div>
+                <div style={{ background: T.card, borderRadius: 8, padding: "8px" }}><div style={{ fontSize: 9, color: T.textSoft, textTransform: "uppercase" as const }}>Available</div><div style={{ fontSize: 14, fontWeight: 700, color: "#95E77E", marginTop: 3 }}>{masked(fm(fLimit - fDebt, dCur, true))}</div></div>
+              </div>
+              {/* Per-group summary */}
+              {Object.keys(groups).length > 1 && (
+                <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : Object.keys(groups).length <= 4 ? `repeat(${Object.keys(groups).length}, 1fr)` : "1fr 1fr", gap: 6, marginBottom: 12 }}>
+                  {Object.entries(groups).map(([k, g]) => {
+                    const gOwed = g.items.reduce((s: number, d: AnyState) => s + cv(d.outstanding, d.currency, dCur, rates), 0);
+                    const gLimit = g.items.reduce((s: number, d: AnyState) => s + cv(d.creditLimit || 0, d.currency, dCur, rates), 0);
+                    return (
+                      <div key={k} style={{ ...Cd(g.color), cursor: "pointer" }} onClick={() => toggleFilter(debtFilter, k, setDebtFilter)}>
+                        <div style={L}>{g.label}</div>
+                        <div style={{ fontSize: 14, fontWeight: 700, color: "#FF6B6B", marginTop: 3 }}>{masked(fm(gOwed, dCur, true))}</div>
+                        <div style={{ fontSize: 10, color: T.textSoft }}>{g.items.length} debt{g.items.length !== 1 ? "s" : ""}{gLimit > 0 ? ` · ${Math.round(gOwed / gLimit * 100)}% used` : ""}</div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </>);
+          })()}
           {sf === "debt" && (
             <div style={FmS}><div style={{ fontWeight: 700, color: "#fff", marginBottom: 12 }}>{eId ? "Edit" : "Add Debt"}</div>
               <div style={G2}>
@@ -1326,7 +1446,17 @@ Important: If you see multiple amounts, use the total/final amount. For bank tra
               <div style={FlEnd}><button style={CnclS} onClick={() => { setSf(null); setEId(null); }}>Cancel</button><button style={BtnS("#FF6B6B", "#fff")} onClick={eId ? saveEditDebt : addDebt}>{eId ? "Save" : "Add"}</button></div>
             </div>
           )}
-          {sortedD.length === 0 ? <div style={{ color: "#333", textAlign: "center", padding: 30, fontSize: 13 }}>No debts</div> : sortedD.map((d: AnyState) => {
+          {(() => {
+            const matchDebt = (d: AnyState) => {
+              if (debtFilter.includes("all")) return true;
+              const holderFilters = debtFilter.filter((f: string) => f.startsWith("holder:")).map((f: string) => f.replace("holder:", ""));
+              const scopeFilters = debtFilter.filter((f: string) => !f.startsWith("holder:"));
+              const scopeOk = scopeFilters.length === 0 || scopeFilters.includes(d.scope);
+              const holderOk = holderFilters.length === 0 || holderFilters.includes(d.holder);
+              return scopeOk || holderOk;
+            };
+            const filteredD = sortedD.filter(matchDebt);
+            return filteredD.length === 0 ? <div style={{ color: "#333", textAlign: "center", padding: 30, fontSize: 13 }}>No debts</div> : filteredD.map((d: AnyState) => {
             const days = dTo(d.dueDate); const uc = uClr(days); const util = d.creditLimit > 0 ? Math.round(d.outstanding / d.creditLimit * 100) : 0;
             return (
               <div key={d.id} style={{ background: "#12141A", borderRadius: 12, padding: "14px", marginBottom: 10, borderLeft: `3px solid ${uc}` }}>
@@ -1351,7 +1481,7 @@ Important: If you see multiple amounts, use the total/final amount. For bank tra
                 </div>
               </div>
             );
-          })}
+          })})()}
         </div>)}
 
         {/* ═══ RECEIVABLES ═══ */}
