@@ -116,6 +116,7 @@ export default function Vault() {
   const [calcRates, setCalcRates] = useState<Record<string, string>>({ shippingPct: "13.5", codPct: "1", deliveryRate: "75", salariesPct: "6", otherPct: "1", cogsPct: "10", adsRoas: "4" });
   const [calcExtras, setCalcExtras] = useState<Array<{ name: string; pct: string }>>([]);
   const [showCalcRates, setShowCalcRates] = useState(false);
+  const [calcPesoMode, setCalcPesoMode] = useState(false);
   const [marketData, setMarketData] = useState<AnyState[]>([]);
   const [marketLoading, setMarketLoading] = useState(false);
   const [marketSort, setMarketSort] = useState("market_cap");
@@ -2395,16 +2396,45 @@ Important: If you see multiple amounts, use the total/final amount. For bank tra
               <span>⚙️ Expense Rates ({(totalExpPct + adsPctEq).toFixed(1)}% total){calcExtras.length > 0 ? ` · +${calcExtras.length} custom` : ""}</span>
               <span>{showCalcRates ? "▲" : "▼"}</span>
             </button>
-            {showCalcRates && (
+            {showCalcRates && (() => {
+              const gross = parseN(calcMode === "sales2cash" ? calcDaily : "0") * daysLeft || parseN(calcTarget) / (netMarginPct / 100) || 0;
+              const pesoToRate = (peso: string, field: string) => {
+                if (!gross || gross <= 0) return;
+                const pct = (parseN(peso) / gross * 100).toFixed(2);
+                setCalcRates({ ...cr, [field]: pct });
+              };
+              const rateToPeso = (field: string) => (gross * (parseFloat(cr[field]) || 0) / 100);
+
+              return (
               <div style={{ ...FmS, marginTop: 0, borderTopLeftRadius: 0, borderTopRightRadius: 0 }}>
+                {/* % / ₱ Toggle */}
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+                  <div style={{ fontSize: 10, color: T.textSoft, fontWeight: 600 }}>Enter as:</div>
+                  <div style={{ display: "flex", gap: 2, background: T.statBg, borderRadius: 6, padding: 2 }}>
+                    <button onClick={() => setCalcPesoMode(false)} style={{ padding: "5px 12px", borderRadius: 4, border: "none", cursor: "pointer", fontSize: 11, fontWeight: 600, background: !calcPesoMode ? "#4ECDC4" : "transparent", color: !calcPesoMode ? "#0B0D12" : T.textSoft }}>% Rate</button>
+                    <button onClick={() => setCalcPesoMode(true)} style={{ padding: "5px 12px", borderRadius: 4, border: "none", cursor: "pointer", fontSize: 11, fontWeight: 600, background: calcPesoMode ? "#E9C46A" : "transparent", color: calcPesoMode ? "#0B0D12" : T.textSoft }}>₱ Peso</button>
+                  </div>
+                </div>
+                {calcPesoMode && !gross && <div style={{ fontSize: 10, color: "#FFD93D", marginBottom: 8, padding: "6px 8px", background: "#FFD93D11", borderRadius: 6 }}>Enter daily sales or target amount first so peso values can convert to %</div>}
+
                 <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "1fr 1fr 1fr 1fr", gap: 8, marginBottom: 10 }}>
                   <div><span style={L}>Delivery %</span><input style={I} type="number" step="0.1" value={cr.deliveryRate} onChange={e => setCalcRates({ ...cr, deliveryRate: e.target.value })} /></div>
-                  <div><span style={L}>Shipping %</span><input style={I} type="number" step="0.1" value={cr.shippingPct} onChange={e => setCalcRates({ ...cr, shippingPct: e.target.value })} /></div>
-                  <div><span style={L}>COD Fees %</span><input style={I} type="number" step="0.1" value={cr.codPct} onChange={e => setCalcRates({ ...cr, codPct: e.target.value })} /></div>
-                  <div><span style={L}>COGS %</span><input style={I} type="number" step="0.1" value={cr.cogsPct} onChange={e => setCalcRates({ ...cr, cogsPct: e.target.value })} /></div>
-                  <div><span style={L}>Salaries & OpEx %</span><input style={I} type="number" step="0.1" value={cr.salariesPct} onChange={e => setCalcRates({ ...cr, salariesPct: e.target.value })} /></div>
-                  <div><span style={L}>Other %</span><input style={I} type="number" step="0.1" value={cr.otherPct} onChange={e => setCalcRates({ ...cr, otherPct: e.target.value })} /></div>
-                  <div><span style={L}>Ads ROAS</span><input style={I} type="number" step="0.1" value={cr.adsRoas} onChange={e => setCalcRates({ ...cr, adsRoas: e.target.value })} /></div>
+                  {[
+                    ["shippingPct", "Shipping"], ["codPct", "COD Fees"], ["cogsPct", "COGS"],
+                    ["salariesPct", "Salaries & OpEx"], ["otherPct", "Other"],
+                  ].map(([key, label]) => (
+                    <div key={key}>
+                      <span style={L}>{label} {calcPesoMode ? "₱" : "%"}</span>
+                      {calcPesoMode ? (
+                        <NumIn style={I} value={gross > 0 ? String(Math.round(rateToPeso(key))) : ""} onChange={(v: string) => pesoToRate(v, key)} placeholder={gross > 0 ? "0" : "Set sales first"} />
+                      ) : (
+                        <input style={I} type="number" step="0.1" value={cr[key]} onChange={e => setCalcRates({ ...cr, [key]: e.target.value })} />
+                      )}
+                      {calcPesoMode && gross > 0 && <div style={{ fontSize: 9, color: T.textMuted, marginTop: 2 }}>= {cr[key]}%</div>}
+                      {!calcPesoMode && gross > 0 && <div style={{ fontSize: 9, color: T.textMuted, marginTop: 2 }}>= {fm(rateToPeso(key), dCur)}</div>}
+                    </div>
+                  ))}
+                  <div><span style={L}>Ads ROAS</span><input style={I} type="number" step="0.1" value={cr.adsRoas} onChange={e => setCalcRates({ ...cr, adsRoas: e.target.value })} />{gross > 0 && parseFloat(cr.adsRoas) > 0 && <div style={{ fontSize: 9, color: T.textMuted, marginTop: 2 }}>= {fm(gross / parseFloat(cr.adsRoas), dCur)} ad spend</div>}</div>
                 </div>
 
                 {/* Custom extra expenses */}
@@ -2412,20 +2442,28 @@ Important: If you see multiple amounts, use the total/final amount. For bank tra
                   <div style={{ marginBottom: 10 }}>
                     <div style={{ fontSize: 10, fontWeight: 700, color: T.textSoft, textTransform: "uppercase" as const, letterSpacing: 1, marginBottom: 6 }}>Custom Expenses</div>
                     {calcExtras.map((ex, i) => (
-                      <div key={i} style={{ display: "flex", gap: 6, marginBottom: 4, alignItems: "center" }}>
-                        <input style={{ ...I, flex: 2 }} value={ex.name} onChange={e => { const ne = [...calcExtras]; ne[i] = { ...ne[i], name: e.target.value }; setCalcExtras(ne); }} placeholder="Expense name" />
-                        <input style={{ ...I, flex: 1 }} type="number" step="0.1" value={ex.pct} onChange={e => { const ne = [...calcExtras]; ne[i] = { ...ne[i], pct: e.target.value }; setCalcExtras(ne); }} placeholder="%" />
-                        <button onClick={() => setCalcExtras(calcExtras.filter((_, j) => j !== i))} style={{ background: "none", border: `1px solid #FF6B6B33`, color: "#FF6B6B", padding: "6px 10px", borderRadius: 6, cursor: "pointer", fontSize: 12, flexShrink: 0 }}>✕</button>
+                      <div key={i} style={{ display: "flex", gap: 6, marginBottom: 4, alignItems: "flex-start" }}>
+                        <div style={{ flex: 2 }}><input style={I} value={ex.name} onChange={e => { const ne = [...calcExtras]; ne[i] = { ...ne[i], name: e.target.value }; setCalcExtras(ne); }} placeholder="Expense name" /></div>
+                        <div style={{ flex: 1 }}>
+                          {calcPesoMode ? (
+                            <NumIn style={I} value={gross > 0 ? String(Math.round(gross * (parseFloat(ex.pct) || 0) / 100)) : ex.pct} onChange={(v: string) => { const ne = [...calcExtras]; ne[i] = { ...ne[i], pct: gross > 0 ? (parseN(v) / gross * 100).toFixed(2) : v }; setCalcExtras(ne); }} placeholder={calcPesoMode ? "₱" : "%"} />
+                          ) : (
+                            <input style={I} type="number" step="0.1" value={ex.pct} onChange={e => { const ne = [...calcExtras]; ne[i] = { ...ne[i], pct: e.target.value }; setCalcExtras(ne); }} placeholder="%" />
+                          )}
+                          {calcPesoMode && gross > 0 && <div style={{ fontSize: 9, color: T.textMuted, marginTop: 2 }}>= {ex.pct}%</div>}
+                        </div>
+                        <button onClick={() => setCalcExtras(calcExtras.filter((_, j) => j !== i))} style={{ background: "none", border: `1px solid #FF6B6B33`, color: "#FF6B6B", padding: "6px 10px", borderRadius: 6, cursor: "pointer", fontSize: 12, flexShrink: 0, marginTop: 2 }}>✕</button>
                       </div>
                     ))}
                   </div>
                 )}
                 <div style={{ display: "flex", gap: 6 }}>
                   <button onClick={() => setCalcExtras([...calcExtras, { name: "", pct: "" }])} style={{ ...BtnS("transparent"), border: `1px solid ${T.cardBorder}`, color: T.text, fontSize: 11 }}>+ Add Expense</button>
-                  <button onClick={() => setCalcRates({ shippingPct: "13.5", codPct: "1", deliveryRate: "75", salariesPct: "6", otherPct: "1", cogsPct: "10", adsRoas: "4" })} style={{ ...BtnS("transparent"), border: `1px solid ${T.cardBorder}`, color: T.textSoft, fontSize: 11 }}>Reset Defaults</button>
+                  <button onClick={() => { setCalcRates({ shippingPct: "13.5", codPct: "1", deliveryRate: "75", salariesPct: "6", otherPct: "1", cogsPct: "10", adsRoas: "4" }); setCalcPesoMode(false); }} style={{ ...BtnS("transparent"), border: `1px solid ${T.cardBorder}`, color: T.textSoft, fontSize: 11 }}>Reset Defaults</button>
                 </div>
               </div>
-            )}
+              );
+            })()}
 
             {/* Results */}
             {results && (
