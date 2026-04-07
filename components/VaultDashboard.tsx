@@ -1096,6 +1096,24 @@ Important: If you see multiple amounts, use the total/final amount. For bank tra
             <div style={Cd("#FF6B6B")}><div style={L}>Used Credit</div><div style={{ fontSize: 14, fontWeight: 700, color: "#FF6B6B", marginTop: 3 }}>{masked(fm(tDebt, dCur, true))}</div><div style={{ fontSize: 10, color: T.textSoft }}>{tLimit > 0 ? Math.round(tDebt / tLimit * 100) : 0}% used</div></div>
             <div style={Cd("#95E77E")}><div style={L}>Available Credit</div><div style={{ fontSize: 14, fontWeight: 700, color: "#95E77E", marginTop: 3 }}>{masked(fm(tLimit - tDebt, dCur, true))}</div></div>
           </div>}
+          {/* Purchasing Power */}
+          {(() => {
+            const availCredit = Math.max(0, tLimit - tDebt);
+            const purchasingPower = tAssets + tCrypto + availCredit;
+            return (
+              <div style={{ background: T.card, borderRadius: 10, padding: "12px", marginBottom: 8, borderLeft: "3px solid #C896E0", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <div>
+                  <div style={L}>Purchasing Power</div>
+                  <div style={{ fontSize: 20, fontWeight: 800, color: "#C896E0", marginTop: 3 }}>{masked(fm(purchasingPower, dCur, true))}</div>
+                </div>
+                <div style={{ textAlign: "right" as const, fontSize: 10, color: T.textSoft, lineHeight: 1.8 }}>
+                  <div>Cash: {masked(fm(tAssets, dCur, true))}</div>
+                  <div>Crypto: {masked(fm(tCrypto, dCur, true))}</div>
+                  {availCredit > 0 && <div>Credit: {masked(fm(availCredit, dCur, true))}</div>}
+                </div>
+              </div>
+            );
+          })()}
           {tReceivable > 0 && <div style={{ ...Cd("#26A17B"), marginBottom: 8, display: "flex", justifyContent: "space-between" }}><div><div style={L}>Receivables</div><div style={{ fontSize: 17, fontWeight: 700, color: "#26A17B", marginTop: 3 }}>{masked(fm(tReceivable, dCur, true))}</div></div><div style={{ fontSize: 10, color: T.textSoft, alignSelf: "center" }}>{openR.length} open</div></div>}
           {activeP.length > 0 && <div style={{ ...Cd("#E9C46A"), marginBottom: 8, display: "flex", justifyContent: "space-between" }}><div><div style={L}>Pipeline (Expected Net)</div><div style={{ fontSize: 17, fontWeight: 700, color: "#E9C46A", marginTop: 3 }}>{masked(fm(pipelineNet, dCur, true))}</div></div><div style={{ fontSize: 10, color: T.textSoft, alignSelf: "center" }}>{activeP.length} active · {masked(fm(pipelineGross, dCur, true))} gross</div></div>}
 
